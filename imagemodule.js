@@ -6126,3 +6126,4 @@ module.exports = ImageModule;
 });
 
 if (typeof window !== "undefined") { window.ImageModule = ImageModule; }
+window.ImageModule = ImageModule;
