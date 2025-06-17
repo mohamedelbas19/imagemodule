@@ -1,11 +1,11 @@
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.ImageModule = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 "use strict";
 
-var window.DocUtils = require("docxtemplater").window.DocUtils;
-window.DocUtils.convertPixelsToEmus = function (pixel) {
+var DocUtils = require("docxtemplater").DocUtils;
+DocUtils.convertPixelsToEmus = function (pixel) {
 	return Math.round(pixel * 9525);
 };
-module.exports = window.DocUtils;
+module.exports = DocUtils;
 },{"docxtemplater":5}],2:[function(require,module,exports){
 "use strict";
 
@@ -13,7 +13,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var window.DocUtils = require("./docUtils");
+var DocUtils = require("./docUtils");
 var extensionRegex = /[^.]+\.([^.]+)/;
 
 var rels = {
@@ -61,7 +61,7 @@ module.exports = function () {
 				};
 				throw err;
 			}
-			var relsDoc = window.DocUtils.str2xml(window.DocUtils.xml2str(doc));
+			var relsDoc = DocUtils.str2xml(DocUtils.xml2str(doc));
 			var relationships = relsDoc.getElementsByTagName("Relationships")[0];
 			var relationshipChilds = relationships.getElementsByTagName("Relationship");
 			for (var i = 0, l = relationshipChilds.length; i < l; i++) {
@@ -562,20 +562,20 @@ function _defineProperties(target, props) { for (var i = 0; i < props.length; i+
 
 function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
-var window.DocUtils = require("./doc-utils");
+var DocUtils = require("./doc-utils");
 
-window.DocUtils.traits = require("./traits");
-window.DocUtils.moduleWrapper = require("./module-wrapper");
+DocUtils.traits = require("./traits");
+DocUtils.moduleWrapper = require("./module-wrapper");
 
 var Lexer = require("./lexer");
 
-var defaults = window.DocUtils.defaults,
-    str2xml = window.DocUtils.str2xml,
-    xml2str = window.DocUtils.xml2str,
-    moduleWrapper = window.DocUtils.moduleWrapper,
-    utf8ToWord = window.DocUtils.utf8ToWord,
-    concatArrays = window.DocUtils.concatArrays,
-    unique = window.DocUtils.unique;
+var defaults = DocUtils.defaults,
+    str2xml = DocUtils.str2xml,
+    xml2str = DocUtils.xml2str,
+    moduleWrapper = DocUtils.moduleWrapper,
+    utf8ToWord = DocUtils.utf8ToWord,
+    concatArrays = DocUtils.concatArrays,
+    unique = DocUtils.unique;
 
 var _require = require("./errors"),
     XTInternalError = _require.XTInternalError,
@@ -880,7 +880,7 @@ function () {
   return Docxtemplater;
 }();
 
-Docxtemplater.window.DocUtils = window.DocUtils;
+Docxtemplater.DocUtils = DocUtils;
 Docxtemplater.Errors = require("./errors");
 Docxtemplater.XmlTemplater = require("./xml-templater");
 Docxtemplater.FileTypeConfig = require("./file-type-config");
@@ -5907,7 +5907,7 @@ var _createClass = function () { function defineProperties(target, props) { for 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var templates = require("./templates");
-var window.DocUtils = require("docxtemplater").window.DocUtils;
+var DocUtils = require("docxtemplater").DocUtils;
 var DOMParser = require("xmldom").DOMParser;
 
 function isNaN(number) {
@@ -6020,7 +6020,7 @@ var ImageModule = function () {
 				expandTo = this.options.centered ? "w:p" : "w:t";
 				getInner = getInnerDocx;
 			}
-			return window.DocUtils.traits.expandToOne(parsed, { moduleName: moduleName, getInner: getInner, expandTo: expandTo });
+			return DocUtils.traits.expandToOne(parsed, { moduleName: moduleName, getInner: getInner, expandTo: expandTo });
 		}
 	}, {
 		key: "render",
@@ -6079,7 +6079,7 @@ var ImageModule = function () {
 			if (isNaN(rId)) {
 				throw new Error("rId is NaN, aborting");
 			}
-			var size = [window.DocUtils.convertPixelsToEmus(sizePixel[0]), window.DocUtils.convertPixelsToEmus(sizePixel[1])];
+			var size = [DocUtils.convertPixelsToEmus(sizePixel[0]), DocUtils.convertPixelsToEmus(sizePixel[1])];
 			var centered = this.options.centered || part.centered;
 			var border = this.options.border || null;
 			var newText = void 0;
