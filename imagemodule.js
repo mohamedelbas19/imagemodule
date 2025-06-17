@@ -97,7 +97,7 @@ module.exports = function () {
 			}
 			var types = contentTypeDoc.getElementsByTagName("Types")[0];
 			var newTag = contentTypeDoc.createElement("Default");
-			newTag.namespaceURI = null;
+			//newTag.namespaceURI = null;
 			newTag.setAttribute("ContentType", contentType);
 			newTag.setAttribute("Extension", extension);
 			types.appendChild(newTag);
@@ -3857,7 +3857,7 @@ DOMHandler.prototype = {
 	    
 		this.locator && position(this.locator,el)
 	    for (var i = 0 ; i < len; i++) {
-	        var namespaceURI = attrs.getURI(i);
+	        //var namespaceURI = attrs.getURI(i);
 	        var value = attrs.getValue(i);
 	        var qName = attrs.getQName(i);
 			var attr = doc.createAttributeNS(namespaceURI, qName);
@@ -4697,7 +4697,7 @@ Document.prototype = {
 		node.ownerDocument = this;
 		node.nodeName = qualifiedName;
 		node.tagName = qualifiedName;
-		node.namespaceURI = namespaceURI;
+		// node.namespaceURI = namespaceURI;
 		if(pl.length == 2){
 			node.prefix = pl[0];
 			node.localName = pl[1];
@@ -4715,7 +4715,7 @@ Document.prototype = {
 		node.ownerDocument = this;
 		node.nodeName = qualifiedName;
 		node.name = qualifiedName;
-		node.namespaceURI = namespaceURI;
+		//node.namespaceURI = namespaceURI;
 		node.specified = true;
 		if(pl.length == 2){
 			node.prefix = pl[0];
