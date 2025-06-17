@@ -6102,7 +6102,7 @@ var ImageModule = function () {
 				offset.x = Math.round(offset.x + cellCX / 2 - imgW / 2);
 				offset.y = Math.round(offset.y + cellCY / 2 - imgH / 2);
 			}
-			return templates.getPptxImageXml(rId, [imgW, imgH], offset);
+			return window.Docxtemplater.DocUtils.str2xml(templates.getPptxImageXml(rId, [imgW, imgH], offset));
 		}
 	}, {
 		key: "getRenderedPartDocx",
@@ -6126,4 +6126,3 @@ module.exports = ImageModule;
 });
 
 if (typeof window !== "undefined") { window.ImageModule = ImageModule; }
-window.ImageModule = ImageModule;
