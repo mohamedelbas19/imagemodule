@@ -1,4 +1,4 @@
-//modified
+//modif
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.ImageModule = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 "use strict";
 
@@ -98,7 +98,7 @@ module.exports = function () {
 			}
 			var types = contentTypeDoc.getElementsByTagName("Types")[0];
 			var newTag = contentTypeDoc.createElement("Default");
-			//newTag.namespaceURI = null;
+// 			//newTag.namespaceURI = null;
 			newTag.setAttribute("ContentType", contentType);
 			newTag.setAttribute("Extension", extension);
 			types.appendChild(newTag);
@@ -128,7 +128,7 @@ module.exports = function () {
 			this.addExtensionRels("image/" + extension, extension);
 			var relationships = this.relsDoc.getElementsByTagName("Relationships")[0];
 			var newTag = this.relsDoc.createElement("Relationship");
-			//newTag.namespaceURI = null;
+// 			//newTag.namespaceURI = null;
 			var maxRid = this.loadImageRels() + 1;
 			newTag.setAttribute("Id", "rId" + maxRid);
 			newTag.setAttribute("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image");
@@ -3858,7 +3858,7 @@ DOMHandler.prototype = {
 	    
 		this.locator && position(this.locator,el)
 	    for (var i = 0 ; i < len; i++) {
-	        //var namespaceURI = attrs.getURI(i);
+// 	        //var namespaceURI = attrs.getURI(i);
 	        var value = attrs.getValue(i);
 	        var qName = attrs.getQName(i);
 			var attr = doc.createAttributeNS(namespaceURI, qName);
@@ -4265,7 +4265,7 @@ NamedNodeMap.prototype = {
 		var i = this.length;
 		while(i--){
 			var node = this[i];
-			if(node.localName == localName && node.namespaceURI == namespaceURI){
+// 			if(node.localName == localName && node.namespaceURI == namespaceURI){
 				return node;
 			}
 		}
@@ -4698,7 +4698,7 @@ Document.prototype = {
 		node.ownerDocument = this;
 		node.nodeName = qualifiedName;
 		node.tagName = qualifiedName;
-		// node.namespaceURI = namespaceURI;
+// 		// node.namespaceURI = namespaceURI;
 		if(pl.length == 2){
 			node.prefix = pl[0];
 			node.localName = pl[1];
@@ -4716,7 +4716,7 @@ Document.prototype = {
 		node.ownerDocument = this;
 		node.nodeName = qualifiedName;
 		node.name = qualifiedName;
-		//node.namespaceURI = namespaceURI;
+// 		//node.namespaceURI = namespaceURI;
 		node.specified = true;
 		if(pl.length == 2){
 			node.prefix = pl[0];
@@ -4811,7 +4811,7 @@ Element.prototype = {
 		return new LiveNodeList(this,function(base){
 			var ls = [];
 			_visitNode(base,function(node){
-				if(node !== base && node.nodeType === ELEMENT_NODE && (namespaceURI === '*' || node.namespaceURI === namespaceURI) && (localName === '*' || node.localName == localName)){
+// 				if(node !== base && node.nodeType === ELEMENT_NODE && (namespaceURI === '*' || node.namespaceURI === namespaceURI) && (localName === '*' || node.localName == localName)){
 					ls.push(node);
 				}
 			});
