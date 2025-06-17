@@ -1,12 +1,15 @@
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.ImageModule = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 "use strict";
 
 var DocUtils = require("docxtemplater").DocUtils;
 DocUtils.convertPixelsToEmus = function (pixel) {
+	return Math.round(pixel * 9525);
 };
 module.exports = DocUtils;
 },{"docxtemplater":5}],2:[function(require,module,exports){
 "use strict";
 
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -15,14 +18,18 @@ var extensionRegex = /[^.]+\.([^.]+)/;
 
 var rels = {
 	getPrefix: function getPrefix(fileType) {
+		return fileType === "docx" ? "word" : "ppt";
 	},
 	getFileTypeName: function getFileTypeName(fileType) {
+		return fileType === "docx" ? "document" : "presentation";
 	},
 	getRelsFileName: function getRelsFileName(fileName) {
+		return fileName.replace(/^.*?([a-zA-Z0-9]+)\.xml$/, "$1") + ".xml.rels";
 	},
 	getRelsFilePath: function getRelsFilePath(fileName, fileType) {
 		var relsFileName = rels.getRelsFileName(fileName);
 		var prefix = fileType === "pptx" ? "ppt/slides" : "word";
+		return prefix + "/_rels/" + relsFileName;
 	}
 };
 
@@ -61,14 +68,18 @@ module.exports = function () {
 				relationships.removeChild(relationshipChilds[i]);
 			}
 			xmlDocuments[relsFileName] = relsDoc;
+			return relsDoc;
 		}
 	}, {
 		key: "loadImageRels",
 		value: function loadImageRels() {
 			var iterable = this.relsDoc.getElementsByTagName("Relationship");
+			return Array.prototype.reduce.call(iterable, function (max, relationship) {
 				var id = relationship.getAttribute("Id");
 				if (/^rId[0-9]+$/.test(id)) {
+					return Math.max(max, parseInt(id.substr(3), 10));
 				}
+				return max;
 			}, 0);
 		}
 		// Add an extension type in the [Content_Types.xml], is used if for example you want word to be able to read png files (for every extension you add you need a contentType)
@@ -79,8 +90,10 @@ module.exports = function () {
 			var contentTypeDoc = this.xmlDocuments["[Content_Types].xml"];
 			var defaultTags = contentTypeDoc.getElementsByTagName("Default");
 			var extensionRegistered = Array.prototype.some.call(defaultTags, function (tag) {
+				return tag.getAttribute("Extension") === extension;
 			});
 			if (extensionRegistered) {
+				return;
 			}
 			var types = contentTypeDoc.getElementsByTagName("Types")[0];
 			var newTag = contentTypeDoc.createElement("Default");
@@ -89,6 +102,7 @@ module.exports = function () {
 			newTag.setAttribute("Extension", extension);
 			types.appendChild(newTag);
 		}
+		// Add an image and returns it's Rid
 
 	}, {
 		key: "addImageRels",
@@ -99,6 +113,7 @@ module.exports = function () {
 			var realImageName = i === 0 ? imageName : imageName + ("(" + i + ")");
 			var imagePath = this.prefix + "/media/" + realImageName;
 			if (this.zip.files[imagePath] != null) {
+				return this.addImageRels(imageName, imageData, i + 1);
 			}
 			var image = {
 				name: imagePath,
@@ -118,26 +133,33 @@ module.exports = function () {
 			newTag.setAttribute("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image");
 			newTag.setAttribute("Target", this.mediaPrefix + "/" + realImageName);
 			relationships.appendChild(newTag);
+			return maxRid;
 		}
 	}]);
 
+	return ImgManager;
 }();
 },{"./docUtils":1}],3:[function(require,module,exports){
 "use strict";
 
 module.exports = {
 	getImageXml: function getImageXml(rId, size) {
+		return ("<w:drawing>\n\t\t<wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">\n\t\t\t<wp:extent cx=\"" + size[0] + "\" cy=\"" + size[1] + "\"/>\n\t\t\t<wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>\n\t\t\t<wp:docPr id=\"2\" name=\"Image 2\" descr=\"image\"/>\n\t\t\t<wp:cNvGraphicFramePr>\n\t\t\t\t<a:graphicFrameLocks xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" noChangeAspect=\"1\"/>\n\t\t\t</wp:cNvGraphicFramePr>\n\t\t\t<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">\n\t\t\t\t<a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">\n\t\t\t\t\t<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">\n\t\t\t\t\t\t<pic:nvPicPr>\n\t\t\t\t\t\t\t<pic:cNvPr id=\"0\" name=\"Picture 1\" descr=\"image\"/>\n\t\t\t\t\t\t\t<pic:cNvPicPr>\n\t\t\t\t\t\t\t\t<a:picLocks noChangeAspect=\"1\" noChangeArrowheads=\"1\"/>\n\t\t\t\t\t\t\t</pic:cNvPicPr>\n\t\t\t\t\t\t</pic:nvPicPr>\n\t\t\t\t\t\t<pic:blipFill>\n\t\t\t\t\t\t\t<a:blip r:embed=\"rId" + rId + "\">\n\t\t\t\t\t\t\t\t<a:extLst>\n\t\t\t\t\t\t\t\t\t<a:ext uri=\"{28A0092B-C50C-407E-A947-70E740481C1C}\">\n\t\t\t\t\t\t\t\t\t\t<a14:useLocalDpi xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" val=\"0\"/>\n\t\t\t\t\t\t\t\t\t</a:ext>\n\t\t\t\t\t\t\t\t</a:extLst>\n\t\t\t\t\t\t\t</a:blip>\n\t\t\t\t\t\t\t<a:srcRect/>\n\t\t\t\t\t\t\t<a:stretch>\n\t\t\t\t\t\t\t\t<a:fillRect/>\n\t\t\t\t\t\t\t</a:stretch>\n\t\t\t\t\t\t</pic:blipFill>\n\t\t\t\t\t\t<pic:spPr bwMode=\"auto\">\n\t\t\t\t\t\t\t<a:xfrm>\n\t\t\t\t\t\t\t\t<a:off x=\"0\" y=\"0\"/>\n\t\t\t\t\t\t\t\t<a:ext cx=\"" + size[0] + "\" cy=\"" + size[1] + "\"/>\n\t\t\t\t\t\t\t</a:xfrm>\n\t\t\t\t\t\t\t<a:prstGeom prst=\"rect\">\n\t\t\t\t\t\t\t\t<a:avLst/>\n\t\t\t\t\t\t\t</a:prstGeom>\n\t\t\t\t\t\t\t<a:noFill/>\n\t\t\t\t\t\t\t<a:ln>\n\t\t\t\t\t\t\t\t<a:noFill/>\n\t\t\t\t\t\t\t</a:ln>\n\t\t\t\t\t\t</pic:spPr>\n\t\t\t\t\t</pic:pic>\n\t\t\t\t</a:graphicData>\n\t\t\t</a:graphic>\n\t\t</wp:inline>\n\t</w:drawing>\n\t\t").replace(/\t|\n/g, "");
 	},
 	getImageXmlBordered: function getImageXmlBordered(rId, size, border) {
+		return ("<w:drawing>\n\t\t<wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">\n\t\t\t<wp:extent cx=\"" + size[0] + "\" cy=\"" + size[1] + "\"/>\n\t\t\t<wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>\n\t\t\t<wp:docPr id=\"2\" name=\"Image 2\" descr=\"image\"/>\n\t\t\t<wp:cNvGraphicFramePr>\n\t\t\t\t<a:graphicFrameLocks xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" noChangeAspect=\"1\"/>\n\t\t\t</wp:cNvGraphicFramePr>\n\t\t\t<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">\n\t\t\t\t<a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">\n\t\t\t\t\t<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">\n\t\t\t\t\t\t<pic:nvPicPr>\n\t\t\t\t\t\t\t<pic:cNvPr id=\"0\" name=\"Picture 1\" descr=\"image\"/>\n\t\t\t\t\t\t\t<pic:cNvPicPr>\n\t\t\t\t\t\t\t\t<a:picLocks noChangeAspect=\"1\" noChangeArrowheads=\"1\"/>\n\t\t\t\t\t\t\t</pic:cNvPicPr>\n\t\t\t\t\t\t</pic:nvPicPr>\n\t\t\t\t\t\t<pic:blipFill>\n\t\t\t\t\t\t\t<a:blip r:embed=\"rId" + rId + "\">\n\t\t\t\t\t\t\t\t<a:extLst>\n\t\t\t\t\t\t\t\t\t<a:ext uri=\"{28A0092B-C50C-407E-A947-70E740481C1C}\">\n\t\t\t\t\t\t\t\t\t\t<a14:useLocalDpi xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" val=\"0\"/>\n\t\t\t\t\t\t\t\t\t</a:ext>\n\t\t\t\t\t\t\t\t</a:extLst>\n\t\t\t\t\t\t\t</a:blip>\n\t\t\t\t\t\t\t<a:srcRect/>\n\t\t\t\t\t\t\t<a:stretch>\n\t\t\t\t\t\t\t\t<a:fillRect/>\n\t\t\t\t\t\t\t</a:stretch>\n\t\t\t\t\t\t</pic:blipFill>\n\t\t\t\t\t\t<pic:spPr bwMode=\"auto\">\n\t\t\t\t\t\t\t<a:xfrm>\n\t\t\t\t\t\t\t\t<a:off x=\"0\" y=\"0\"/>\n\t\t\t\t\t\t\t\t<a:ext cx=\"" + size[0] + "\" cy=\"" + size[1] + "\"/>\n\t\t\t\t\t\t\t</a:xfrm>\n\t\t\t\t\t\t\t<a:prstGeom prst=\"rect\">\n\t\t\t\t\t\t\t\t<a:avLst/>\n\t\t\t\t\t\t\t</a:prstGeom>\n\t\t\t\t\t\t\t<a:noFill/>\n\t\t\t\t\t\t\t<a:ln>\n\t\t\t\t\t\t\t\t<a:solidFill>\n\t\t\t\t\t\t\t\t\t<a:srgbClr val=\"" + border + "\"/>\n\t\t\t\t\t\t\t\t</a:solidFill>\n\t\t\t\t\t\t\t</a:ln>\n\t\t\t\t\t\t</pic:spPr>\n\t\t\t\t\t</pic:pic>\n\t\t\t\t</a:graphicData>\n\t\t\t</a:graphic>\n\t\t</wp:inline>\n\t</w:drawing>\n\t\t").replace(/\t|\n/g, "");
 	},
 	getImageXmlCentered: function getImageXmlCentered(rId, size) {
+		return ("<w:p>\n\t\t\t<w:pPr>\n\t\t\t\t<w:jc w:val=\"center\"/>\n\t\t\t</w:pPr>\n\t\t\t<w:r>\n\t\t\t\t<w:rPr/>\n\t\t\t\t<w:drawing>\n\t\t\t\t\t<wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">\n\t\t\t\t\t<wp:extent cx=\"" + size[0] + "\" cy=\"" + size[1] + "\"/>\n\t\t\t\t\t<wp:docPr id=\"0\" name=\"Picture\" descr=\"\"/>\n\t\t\t\t\t<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">\n\t\t\t\t\t\t<a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">\n\t\t\t\t\t\t<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">\n\t\t\t\t\t\t\t<pic:nvPicPr>\n\t\t\t\t\t\t\t<pic:cNvPr id=\"0\" name=\"Picture\" descr=\"\"/>\n\t\t\t\t\t\t\t<pic:cNvPicPr>\n\t\t\t\t\t\t\t\t<a:picLocks noChangeAspect=\"1\" noChangeArrowheads=\"1\"/>\n\t\t\t\t\t\t\t</pic:cNvPicPr>\n\t\t\t\t\t\t\t</pic:nvPicPr>\n\t\t\t\t\t\t\t<pic:blipFill>\n\t\t\t\t\t\t\t<a:blip r:embed=\"rId" + rId + "\"/>\n\t\t\t\t\t\t\t<a:stretch>\n\t\t\t\t\t\t\t\t<a:fillRect/>\n\t\t\t\t\t\t\t</a:stretch>\n\t\t\t\t\t\t\t</pic:blipFill>\n\t\t\t\t\t\t\t<pic:spPr bwMode=\"auto\">\n\t\t\t\t\t\t\t<a:xfrm>\n\t\t\t\t\t\t\t\t<a:off x=\"0\" y=\"0\"/>\n\t\t\t\t\t\t\t\t<a:ext cx=\"" + size[0] + "\" cy=\"" + size[1] + "\"/>\n\t\t\t\t\t\t\t</a:xfrm>\n\t\t\t\t\t\t\t<a:prstGeom prst=\"rect\">\n\t\t\t\t\t\t\t\t<a:avLst/>\n\t\t\t\t\t\t\t</a:prstGeom>\n\t\t\t\t\t\t\t<a:noFill/>\n\t\t\t\t\t\t\t<a:ln w=\"9525\">\n\t\t\t\t\t\t\t\t<a:noFill/>\n\t\t\t\t\t\t\t\t<a:miter lim=\"800000\"/>\n\t\t\t\t\t\t\t\t<a:headEnd/>\n\t\t\t\t\t\t\t\t<a:tailEnd/>\n\t\t\t\t\t\t\t</a:ln>\n\t\t\t\t\t\t\t</pic:spPr>\n\t\t\t\t\t\t</pic:pic>\n\t\t\t\t\t\t</a:graphicData>\n\t\t\t\t\t</a:graphic>\n\t\t\t\t\t</wp:inline>\n\t\t\t\t</w:drawing>\n\t\t\t</w:r>\n\t\t</w:p>\n\t\t").replace(/\t|\n/g, "");
 	},
 	getPptxImageXml: function getPptxImageXml(rId, size, offset) {
+		return ("<p:pic>\n\t\t\t<p:nvPicPr>\n\t\t\t\t<p:cNvPr id=\"6\" name=\"Picture 2\"/>\n\t\t\t\t<p:cNvPicPr>\n\t\t\t\t\t<a:picLocks noChangeAspect=\"1\" noChangeArrowheads=\"1\"/>\n\t\t\t\t</p:cNvPicPr>\n\t\t\t\t<p:nvPr/>\n\t\t\t</p:nvPicPr>\n\t\t\t<p:blipFill>\n\t\t\t\t<a:blip r:embed=\"rId" + rId + "\" cstate=\"print\">\n\t\t\t\t\t<a:extLst>\n\t\t\t\t\t\t<a:ext uri=\"{28A0092B-C50C-407E-A947-70E740481C1C}\">\n\t\t\t\t\t\t\t<a14:useLocalDpi xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" val=\"0\"/>\n\t\t\t\t\t\t</a:ext>\n\t\t\t\t\t</a:extLst>\n\t\t\t\t</a:blip>\n\t\t\t\t<a:srcRect/>\n\t\t\t\t<a:stretch>\n\t\t\t\t\t<a:fillRect/>\n\t\t\t\t</a:stretch>\n\t\t\t</p:blipFill>\n\t\t\t<p:spPr bwMode=\"auto\">\n\t\t\t\t<a:xfrm>\n\t\t\t\t\t<a:off x=\"" + offset.x + "\" y=\"" + offset.y + "\"/>\n\t\t\t\t\t<a:ext cx=\"" + size[0] + "\" cy=\"" + size[1] + "\"/>\n\t\t\t\t</a:xfrm>\n\t\t\t\t<a:prstGeom prst=\"rect\">\n\t\t\t\t\t<a:avLst/>\n\t\t\t\t</a:prstGeom>\n\t\t\t\t<a:noFill/>\n\t\t\t\t<a:ln>\n\t\t\t\t\t<a:noFill/>\n\t\t\t\t</a:ln>\n\t\t\t\t<a:effectLst/>\n\t\t\t\t<a:extLst>\n\t\t\t\t\t<a:ext uri=\"{909E8E84-426E-40DD-AFC4-6F175D3DCCD1}\">\n\t\t\t\t\t\t<a14:hiddenFill xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\">\n\t\t\t\t\t\t\t<a:solidFill>\n\t\t\t\t\t\t\t\t<a:schemeClr val=\"accent1\"/>\n\t\t\t\t\t\t\t</a:solidFill>\n\t\t\t\t\t\t</a14:hiddenFill>\n\t\t\t\t\t</a:ext>\n\t\t\t\t\t<a:ext uri=\"{91240B29-F687-4F45-9708-019B960494DF}\">\n\t\t\t\t\t\t<a14:hiddenLine xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" w=\"9525\">\n\t\t\t\t\t\t\t<a:solidFill>\n\t\t\t\t\t\t\t\t<a:schemeClr val=\"tx1\"/>\n\t\t\t\t\t\t\t</a:solidFill>\n\t\t\t\t\t\t\t<a:miter lim=\"800000\"/>\n\t\t\t\t\t\t\t<a:headEnd/>\n\t\t\t\t\t\t\t<a:tailEnd/>\n\t\t\t\t\t\t</a14:hiddenLine>\n\t\t\t\t\t</a:ext>\n\t\t\t\t\t<a:ext uri=\"{AF507438-7753-43E0-B8FC-AC1667EBCBE1}\">\n\t\t\t\t\t\t<a14:hiddenEffects xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\">\n\t\t\t\t\t\t\t<a:effectLst>\n\t\t\t\t\t\t\t\t<a:outerShdw dist=\"35921\" dir=\"2700000\" algn=\"ctr\" rotWithShape=\"0\">\n\t\t\t\t\t\t\t\t\t<a:schemeClr val=\"bg2\"/>\n\t\t\t\t\t\t\t\t</a:outerShdw>\n\t\t\t\t\t\t\t</a:effectLst>\n\t\t\t\t\t\t</a14:hiddenEffects>\n\t\t\t\t\t</a:ext>\n\t\t\t\t</a:extLst>\n\t\t\t</p:spPr>\n\t\t</p:pic>\n\t\t").replace(/\t|\n/g, "");
 	}
 };
 },{}],4:[function(require,module,exports){
 "use strict";
 
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 var _require = require("xmldom"),
     DOMParser = _require.DOMParser,
@@ -147,9 +169,12 @@ var _require2 = require("./errors"),
     throwXmlTagNotFound = _require2.throwXmlTagNotFound;
 
 function parser(tag) {
+  return _defineProperty({}, "get", function get(scope) {
     if (tag === ".") {
+      return scope;
     }
 
+    return scope[tag];
   });
 }
 
@@ -161,10 +186,12 @@ function getNearestLeft(parsed, elements, index) {
       var element = elements[j];
 
       if (part.value.indexOf("<" + element) === 0 && [">", " "].indexOf(part.value[element.length + 1]) !== -1) {
+        return elements[j];
       }
     }
   }
 
+  return null;
 }
 
 function getNearestRight(parsed, elements, index) {
@@ -175,16 +202,20 @@ function getNearestRight(parsed, elements, index) {
       var element = elements[j];
 
       if (part.value === "</" + element + ">") {
+        return elements[j];
       }
     }
   }
 
+  return -1;
 }
 
 function endsWith(str, suffix) {
+  return str.indexOf(suffix, str.length - suffix.length) !== -1;
 }
 
 function startsWith(str, prefix) {
+  return str.substring(0, prefix.length) === prefix;
 }
 
 function unique(arr) {
@@ -198,13 +229,16 @@ function unique(arr) {
     }
   }
 
+  return result;
 }
 
 function chunkBy(parsed, f) {
+  return parsed.reduce(function (chunks, p) {
     var currentChunk = last(chunks);
 
     if (currentChunk.length === 0) {
       currentChunk.push(p);
+      return chunks;
     }
 
     var res = f(p);
@@ -218,21 +252,27 @@ function chunkBy(parsed, f) {
       currentChunk.push(p);
     }
 
+    return chunks;
   }, [[]]).filter(function (p) {
+    return p.length > 0;
   });
 }
 
 function last(a) {
+  return a[a.length - 1];
 }
 
 var defaults = {
   nullGetter: function nullGetter(part) {
     if (!part.module) {
+      return "undefined";
     }
 
     if (part.module === "rawxml") {
+      return "";
     }
 
+    return "";
   },
   xmlFileNames: [],
   parser: parser,
@@ -256,14 +296,17 @@ function mergeObjects() {
     }
   }
 
+  return resObj;
 }
 
 function xml2str(xmlNode) {
   var a = new XMLSerializer();
+  return a.serializeToString(xmlNode).replace(/xmlns(:[a-z0-9]+)?="" ?/g, "");
 }
 
 function str2xml(str) {
   var parser = new DOMParser();
+  return parser.parseFromString(str, "text/xml");
 }
 
 var charMap = {
@@ -276,10 +319,12 @@ var charMap = {
 var regexStripRegexp = /[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g;
 
 function escapeRegExp(str) {
+  return str.replace(regexStripRegexp, "\\$&");
 }
 
 var charMapRegexes = Object.keys(charMap).map(function (endChar) {
   var startChar = charMap[endChar];
+  return {
     rstart: new RegExp(escapeRegExp(startChar), "g"),
     rend: new RegExp(escapeRegExp(endChar), "g"),
     start: startChar,
@@ -295,6 +340,7 @@ function wordToUtf8(string) {
     string = string.replace(r.rstart, r.end);
   }
 
+  return string;
 }
 
 function utf8ToWord(string) {
@@ -309,6 +355,7 @@ function utf8ToWord(string) {
     string = string.replace(r.rend, r.start);
   }
 
+  return string;
 } // This function is written with for loops for performance
 
 
@@ -323,16 +370,20 @@ function concatArrays(arrays) {
     }
   }
 
+  return result;
 }
 
 var spaceRegexp = new RegExp(String.fromCharCode(160), "g");
 
 function convertSpaces(s) {
+  return s.replace(spaceRegexp, " ");
 }
 
 function pregMatchAll(regex, content) {
+  /* regex is a string, content is the content. It returns an array of all matches with their offset, for example:
   	 regex=la
   	 content=lolalolilala
+  returns: [{array: {0: 'la'},offset: 2},{array: {0: 'la'},offset: 8},{array: {0: 'la'} ,offset: 10}]
   */
   var matchArray = [];
   var match;
@@ -344,12 +395,14 @@ function pregMatchAll(regex, content) {
     });
   }
 
+  return matchArray;
 }
 
 function getRight(parsed, element, index) {
   var val = getRightOrNull(parsed, element, index);
 
   if (val !== null) {
+    return val;
   }
 
   throwXmlTagNotFound({
@@ -365,15 +418,18 @@ function getRightOrNull(parsed, element, index) {
     var part = parsed[i];
 
     if (part.value === "</" + element + ">") {
+      return i;
     }
   }
 
+  return null;
 }
 
 function getLeft(parsed, element, index) {
   var val = getLeftOrNull(parsed, element, index);
 
   if (val !== null) {
+    return val;
   }
 
   throwXmlTagNotFound({
@@ -389,36 +445,45 @@ function getLeftOrNull(parsed, element, index) {
     var part = parsed[i];
 
     if (part.value.indexOf("<" + element) === 0 && [">", " "].indexOf(part.value[element.length + 1]) !== -1) {
+      return i;
     }
   }
 
+  return null;
 }
 
 function isTagStart(tagType, _ref2) {
   var type = _ref2.type,
       tag = _ref2.tag,
       position = _ref2.position;
+  return type === "tag" && tag === tagType && position === "start";
 }
 
 function isTagEnd(tagType, _ref3) {
   var type = _ref3.type,
       tag = _ref3.tag,
       position = _ref3.position;
+  return type === "tag" && tag === tagType && position === "end";
 }
 
 function isParagraphStart(options) {
+  return isTagStart("w:p", options) || isTagStart("a:p", options);
 }
 
 function isParagraphEnd(options) {
+  return isTagEnd("w:p", options) || isTagEnd("a:p", options);
 }
 
 function isTextStart(part) {
+  return part.type === "tag" && part.position === "start" && part.text;
 }
 
 function isTextEnd(part) {
+  return part.type === "tag" && part.position === "end" && part.text;
 }
 
 function isContent(p) {
+  return p.type === "placeholder" || p.type === "content" && p.position === "insidetag";
 }
 
 var corruptCharacters = /[\x00-\x08\x0B\x0C\x0E-\x1F]/; // 00    NUL '\0' (null character)
@@ -452,6 +517,7 @@ var corruptCharacters = /[\x00-\x08\x0B\x0C\x0E-\x1F]/; // 00    NUL '\0' (null 
 // 1F    US  (unit separator)
 
 function hasCorruptCharacters(string) {
+  return corruptCharacters.test(string);
 }
 
 module.exports = {
@@ -494,6 +560,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
 
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 var DocUtils = require("./doc-utils");
 
@@ -536,11 +603,13 @@ function () {
   _createClass(Docxtemplater, [{
     key: "getModuleApiVersion",
     value: function getModuleApiVersion() {
+      return currentModuleApiVersion.join(".");
     }
   }, {
     key: "verifyApiVersion",
     value: function verifyApiVersion(neededVersion) {
       neededVersion = neededVersion.split(".").map(function (i) {
+        return parseInt(i, 10);
       });
 
       if (neededVersion.length !== 3) {
@@ -566,6 +635,7 @@ function () {
         });
       }
 
+      return true;
     }
   }, {
     key: "setModules",
@@ -594,6 +664,7 @@ function () {
       var wrappedModule = moduleWrapper(module);
       this.modules.push(wrappedModule);
       wrappedModule.on("attached");
+      return this;
     }
   }, {
     key: "setOptions",
@@ -616,6 +687,7 @@ function () {
         this.updateFileTypeConfig();
       }
 
+      return this;
     }
   }, {
     key: "loadZip",
@@ -627,7 +699,9 @@ function () {
       this.zip = zip;
       this.updateFileTypeConfig();
       this.modules = concatArrays([this.fileTypeConfig.baseModules.map(function (moduleFunction) {
+        return moduleFunction();
       }), this.modules]);
+      return this;
     }
   }, {
     key: "compileFile",
@@ -641,8 +715,11 @@ function () {
     value: function resolveData(data) {
       var _this2 = this;
 
+      return Promise.all(Object.keys(this.compiled).map(function (from) {
         var currentFile = _this2.compiled[from];
+        return currentFile.resolveTags(data);
       })).then(function (resolved) {
+        return concatArrays(resolved);
       });
     }
   }, {
@@ -651,15 +728,18 @@ function () {
       var _this3 = this;
 
       if (Object.keys(this.compiled).length) {
+        return this;
       }
 
       this.options = this.modules.reduce(function (options, module) {
+        return module.optionsTransformer(options, _this3);
       }, this.options);
       this.options.xmlFileNames = unique(this.options.xmlFileNames);
       this.xmlDocuments = this.options.xmlFileNames.reduce(function (xmlDocuments, fileName) {
         var content = _this3.zip.files[fileName].asText();
 
         xmlDocuments[fileName] = str2xml(content);
+        return xmlDocuments;
       }, {});
       this.setModules({
         zip: this.zip,
@@ -676,6 +756,7 @@ function () {
           _this3.compileFile(fileName);
         }
       });
+      return this;
     }
   }, {
     key: "updateFileTypeConfig",
@@ -704,6 +785,7 @@ function () {
 
       this.fileType = fileType;
       this.fileTypeConfig = this.options.fileTypeConfig || Docxtemplater.FileTypeConfig[this.fileType];
+      return this;
     }
   }, {
     key: "render",
@@ -716,6 +798,7 @@ function () {
         Lexer: Lexer
       });
       this.mapper = this.modules.reduce(function (value, module) {
+        return module.getRenderedMap(value);
       }, {});
       this.fileTypeConfig.tagsXmlLexedArray = unique(this.fileTypeConfig.tagsXmlLexedArray);
       this.fileTypeConfig.tagsXmlTextArray = unique(this.fileTypeConfig.tagsXmlTextArray);
@@ -733,6 +816,7 @@ function () {
       });
       this.sendEvent("syncing-zip");
       this.syncZip();
+      return this;
     }
   }, {
     key: "syncZip",
@@ -743,6 +827,7 @@ function () {
         _this5.zip.remove(fileName);
 
         var content = xml2str(_this5.xmlDocuments[fileName]);
+        return _this5.zip.file(fileName, content, {
           createFolders: true
         });
       });
@@ -751,15 +836,18 @@ function () {
     key: "setData",
     value: function setData(data) {
       this.data = data;
+      return this;
     }
   }, {
     key: "getZip",
     value: function getZip() {
+      return this.zip;
     }
   }, {
     key: "createTemplateClass",
     value: function createTemplateClass(path) {
       var usedData = this.zip.files[path].asText();
+      return this.createTemplateClassFromContent(usedData, path);
     }
   }, {
     key: "createTemplateClassFromContent",
@@ -774,18 +862,22 @@ function () {
       });
       xmltOptions.fileTypeConfig = this.fileTypeConfig;
       xmltOptions.modules = this.modules;
+      return new Docxtemplater.XmlTemplater(content, xmltOptions);
     }
   }, {
     key: "getFullText",
     value: function getFullText(path) {
+      return this.createTemplateClass(path || this.fileTypeConfig.textPath(this.zip)).getFullText();
     }
   }, {
     key: "getTemplatedFiles",
     value: function getTemplatedFiles() {
       this.templatedFiles = this.fileTypeConfig.getTemplatedFiles(this.zip);
+      return this.templatedFiles;
     }
   }]);
 
+  return Docxtemplater;
 }();
 
 Docxtemplater.DocUtils = DocUtils;
@@ -797,12 +889,16 @@ module.exports = Docxtemplater;
 },{"./doc-utils":4,"./errors":6,"./file-type-config":7,"./lexer":8,"./module-wrapper":10,"./traits":22,"./xml-matcher":23,"./xml-templater":24}],6:[function(require,module,exports){
 "use strict";
 
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; var ownKeys = Object.keys(source); if (typeof Object.getOwnPropertySymbols === 'function') { ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function (sym) { return Object.getOwnPropertyDescriptor(source, sym).enumerable; })); } ownKeys.forEach(function (key) { _defineProperty(target, key, source[key]); }); } return target; }
 
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 function first(a) {
+  return a[0];
 }
 
 function last(a) {
+  return a[a.length - 1];
 }
 
 function XTError(message) {
@@ -887,6 +983,7 @@ function getUnopenedTagException(options) {
     lIndex: options.lIndex,
     explanation: "The tag beginning with \"".concat(options.xtag.substr(0, 10), "\" is unopened")
   };
+  return err;
 }
 
 function getUnclosedTagException(options) {
@@ -899,6 +996,7 @@ function getUnclosedTagException(options) {
     lIndex: options.lIndex,
     explanation: "The tag beginning with \"".concat(options.xtag.substr(0, 10), "\" is unclosed")
   };
+  return err;
 }
 
 function throwXmlTagNotFound(options) {
@@ -976,6 +1074,7 @@ function getUnmatchedLoopException(options) {
     explanation: "The loop with tag \"".concat(tag, "\" is ").concat(t),
     xtag: tag
   };
+  return err;
 }
 
 function getClosingTagNotMatchOpeningTag(options) {
@@ -988,6 +1087,7 @@ function getClosingTagNotMatchOpeningTag(options) {
     offset: [tags[0].offset, tags[1].offset],
     closingtag: tags[1].value
   };
+  return err;
 }
 
 function getScopeCompilationError(_ref2) {
@@ -1000,6 +1100,7 @@ function getScopeCompilationError(_ref2) {
     explanation: "The scope parser for the tag \"".concat(tag, "\" failed to compile"),
     rootError: rootError
   };
+  return err;
 }
 
 function getScopeParserExecutionError(_ref3) {
@@ -1014,6 +1115,7 @@ function getScopeParserExecutionError(_ref3) {
     tag: tag,
     rootError: error
   };
+  return err;
 }
 
 function getLoopPositionProducesInvalidXMLError(_ref4) {
@@ -1024,6 +1126,7 @@ function getLoopPositionProducesInvalidXMLError(_ref4) {
     id: "loop_position_invalid",
     explanation: "The tags \"".concat(tag, "\" are misplaced in the document, for example one of them is in a table and the other one outside the table")
   };
+  return err;
 }
 
 function throwUnimplementedTagType(part) {
@@ -1121,9 +1224,12 @@ var render = require("./modules/render");
 var PptXFileTypeConfig = {
   getTemplatedFiles: function getTemplatedFiles(zip) {
     var slideTemplates = zip.file(/ppt\/(slides|slideMasters)\/(slide|slideMaster)\d+\.xml/).map(function (file) {
+      return file.name;
     });
+    return slideTemplates.concat(["ppt/presentation.xml", "docProps/app.xml", "docProps/core.xml"]);
   },
   textPath: function textPath() {
+    return "ppt/slides/slide1.xml";
   },
   tagsXmlTextArray: ["Company", "HyperlinkBase", "Manager", "cp:category", "cp:keywords", "dc:creator", "dc:description", "dc:subject", "dc:title", "a:t", "m:t", "vt:lpstr"],
   tagsXmlLexedArray: ["p:sp", "a:tc", "a:tr", "a:table", "a:p", "a:r", "a:rPr"],
@@ -1144,13 +1250,17 @@ var DocXFileTypeConfig = {
   getTemplatedFiles: function getTemplatedFiles(zip) {
     var baseTags = ["docProps/core.xml", "docProps/app.xml", "word/document.xml", "word/document2.xml"];
     var slideTemplates = zip.file(/word\/(header|footer)\d+\.xml/).map(function (file) {
+      return file.name;
     });
+    return slideTemplates.concat(baseTags);
   },
   textPath: function textPath(zip) {
     if (zip.files["word/document.xml"]) {
+      return "word/document.xml";
     }
 
     if (zip.files["word/document2.xml"]) {
+      return "word/document2.xml";
     }
   },
   tagsXmlTextArray: ["Company", "HyperlinkBase", "Manager", "cp:category", "cp:keywords", "dc:creator", "dc:description", "dc:subject", "dc:title", "w:t", "m:t", "vt:lpstr"],
@@ -1175,10 +1285,13 @@ module.exports = {
 },{"./modules/expand-pair-trait":11,"./modules/loop":12,"./modules/rawxml":13,"./modules/render":14,"./modules/space-preserve":15}],8:[function(require,module,exports){
 "use strict";
 
+function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _nonIterableRest(); }
 
 function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance"); }
 
+function _iterableToArrayLimit(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
 
+function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 
 var _require = require("./errors"),
     getUnclosedTagException = _require.getUnclosedTagException,
@@ -1196,6 +1309,7 @@ var START = -1;
 var END = 1;
 
 function inRange(range, match) {
+  return range[0] <= match.offset && match.offset < range[1];
 }
 
 function updateInTextTag(part, inTextTag) {
@@ -1204,6 +1318,7 @@ function updateInTextTag(part, inTextTag) {
       throwMalformedXml(part);
     }
 
+    return true;
   }
 
   if (isTextEnd(part)) {
@@ -1211,8 +1326,10 @@ function updateInTextTag(part, inTextTag) {
       throwMalformedXml(part);
     }
 
+    return false;
   }
 
+  return inTextTag;
 }
 
 function getTag(tag) {
@@ -1230,6 +1347,7 @@ function getTag(tag) {
 
   var index = tag.indexOf(" ");
   var end = index === -1 ? tag.length - 1 : index;
+  return {
     tag: tag.slice(start, end),
     position: position
   };
@@ -1239,15 +1357,18 @@ function tagMatcher(content, textMatchArray, othersMatchArray) {
   var cursor = 0;
   var contentLength = content.length;
   var allMatches = concatArrays([textMatchArray.map(function (tag) {
+    return {
       tag: tag,
       text: true
     };
   }), othersMatchArray.map(function (tag) {
+    return {
       tag: tag,
       text: false
     };
   })]).reduce(function (allMatches, t) {
     allMatches[t.tag] = t.text;
+    return allMatches;
   }, {});
   var totalMatches = [];
 
@@ -1288,10 +1409,12 @@ function tagMatcher(content, textMatchArray, othersMatchArray) {
     });
   }
 
+  return totalMatches;
 }
 
 function getDelimiterErrors(delimiterMatches, fullText, ranges) {
   if (delimiterMatches.length === 0) {
+    return [];
   }
 
   var errors = [];
@@ -1345,15 +1468,19 @@ function getDelimiterErrors(delimiterMatches, fullText, ranges) {
     delimiterMatch.error = true;
   }
 
+  return errors;
 }
 
 function compareOffsets(startOffset, endOffset) {
   if (startOffset === endOffset) {
+    return EQUAL;
   }
 
   if (startOffset === -1 || endOffset === -1) {
+    return endOffset < startOffset ? START : END;
   }
 
+  return startOffset < endOffset ? START : END;
 }
 
 function splitDelimiters(inside) {
@@ -1371,6 +1498,7 @@ function splitDelimiters(inside) {
     throw new Error("New Delimiters cannot be parsed");
   }
 
+  return [start, end];
 }
 
 function getAllIndexes(fullText, delimiters) {
@@ -1387,6 +1515,7 @@ function getAllIndexes(fullText, delimiters) {
     var compareResult = compareOffsets(startOffset, endOffset);
 
     if (compareResult === EQUAL) {
+      return indexes;
     }
 
     if (compareResult === END) {
@@ -1446,12 +1575,14 @@ function Reader(innerContentParts) {
 
   this.parseDelimiters = function (delimiters) {
     _this.full = _this.innerContentParts.map(function (p) {
+      return p.value;
     }).join("");
     var delimiterMatches = getAllIndexes(_this.full, delimiters);
     var offset = 0;
 
     var ranges = _this.innerContentParts.map(function (part) {
       offset += part.value.length;
+      return {
         offset: offset - part.value.length,
         lIndex: part.lIndex
       };
@@ -1490,6 +1621,7 @@ function Reader(innerContentParts) {
               insideDelimiterChange = delimiterInOffset.position === "start";
             }
 
+            return;
           }
 
           parts.push({
@@ -1513,6 +1645,7 @@ function Reader(innerContentParts) {
         if (delimiterInOffset.changedelimiter) {
           insideDelimiterChange = delimiterInOffset.position === "start";
           cursor = delimiterInOffset.offset - offset + delimiterInOffset.length;
+          return;
         }
 
         parts.push(delimiterPart);
@@ -1529,6 +1662,7 @@ function Reader(innerContentParts) {
         });
       }
 
+      return parts;
     }, _this);
     _this.errors = errors;
   };
@@ -1544,6 +1678,7 @@ function getContentParts(xmlparsed) {
       innerContentParts.push(part);
     }
   });
+  return innerContentParts;
 }
 
 module.exports = {
@@ -1566,6 +1701,7 @@ module.exports = {
             p.position = "insidetag";
           }
 
+          return p;
         }));
         index++;
       } else {
@@ -1574,7 +1710,9 @@ module.exports = {
     });
     lexed = lexed.map(function (p, i) {
       p.lIndex = i;
+      return p;
     });
+    return {
       errors: reader.errors,
       lexed: lexed
     };
@@ -1599,6 +1737,7 @@ module.exports = {
         parsed.push(match);
       }
 
+      return parsed;
     }, []);
     var value = content.substr(cursor);
 
@@ -1609,6 +1748,7 @@ module.exports = {
       });
     }
 
+    return parsed;
   }
 };
 },{"./doc-utils":4,"./errors":6}],9:[function(require,module,exports){
@@ -1631,15 +1771,19 @@ function getMinFromArrays(arrays, state) {
     throw new Error("minIndex negative");
   }
 
+  return minIndex;
 }
 
 module.exports = function (arrays) {
   var totalLength = arrays.reduce(function (sum, array) {
+    return sum + array.length;
   }, 0);
   arrays = arrays.filter(function (array) {
+    return array.length > 0;
   });
   var resultArray = new Array(totalLength);
   var state = arrays.map(function () {
+    return 0;
   });
   var i = 0;
 
@@ -1650,6 +1794,7 @@ module.exports = function (arrays) {
     i++;
   }
 
+  return resultArray;
 };
 },{}],10:[function(require,module,exports){
 "use strict";
@@ -1657,6 +1802,7 @@ module.exports = function (arrays) {
 function emptyFun() {}
 
 function identity(i) {
+  return i;
 }
 
 module.exports = function (module) {
@@ -1676,6 +1822,7 @@ module.exports = function (module) {
   };
 
   if (Object.keys(defaults).every(function (key) {
+    return !module[key];
   })) {
     throw new Error("This module cannot be wrapped, because it doesn't define any of the necessary functions");
   }
@@ -1683,14 +1830,18 @@ module.exports = function (module) {
   Object.keys(defaults).forEach(function (key) {
     module[key] = module[key] || defaults[key];
   });
+  return module;
 };
 },{}],11:[function(require,module,exports){
 "use strict";
 
+function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _nonIterableRest(); }
 
 function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance"); }
 
+function _iterableToArrayLimit(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
 
+function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 
 var traitName = "expandPair";
 
@@ -1715,8 +1866,10 @@ var _require3 = require("../errors"),
 function getOpenCountChange(part) {
   switch (part.location) {
     case "start":
+      return 1;
 
     case "end":
+      return -1;
 
     default:
       throwLocationInvalid(part);
@@ -1728,6 +1881,7 @@ function getPairs(traits) {
   var pairs = [];
 
   if (traits.length === 0) {
+    return {
       pairs: pairs,
       errors: errors
     };
@@ -1754,6 +1908,7 @@ function getPairs(traits) {
           pairs = [[firstTrait, currentTrait]];
         }
 
+        return {
           pairs: pairs.concat(_outer.pairs),
           errors: errors.concat(_outer.errors)
         };
@@ -1767,6 +1922,7 @@ function getPairs(traits) {
     location: part.location
   }));
   var outer = getPairs(traits.slice(1));
+  return {
     pairs: outer.pairs,
     errors: errors.concat(outer.errors)
   };
@@ -1776,6 +1932,7 @@ var expandPairTrait = {
   name: "ExpandPairTrait",
   optionsTransformer: function optionsTransformer(options, docxtemplater) {
     this.expandTags = docxtemplater.fileTypeConfig.expandTags.concat(docxtemplater.options.paragraphLoop ? docxtemplater.fileTypeConfig.onParagraphLoop : []);
+    return options;
   },
   postparse: function postparse(postparsed, _ref) {
     var _this = this;
@@ -1784,6 +1941,7 @@ var expandPairTrait = {
         _postparse = _ref.postparse;
     var traits = getTraits(traitName, postparsed);
     traits = traits.map(function (trait) {
+      return trait || [];
     });
     traits = mergeSort(traits);
 
@@ -1805,10 +1963,12 @@ var expandPairTrait = {
       }
 
       if (!expandTo) {
+        return [pair[0].offset, pair[1].offset];
       }
 
       var left = getLeft(postparsed, expandTo, pair[0].offset);
       var right = getRight(postparsed, expandTo, pair[1].offset);
+      return [left, right];
     });
     var currentPairIndex = 0;
     var innerParts;
@@ -1819,6 +1979,7 @@ var expandPairTrait = {
 
       if (!inPair) {
         newParsed.push(part);
+        return newParsed;
       }
 
       var left = expandedPair[0];
@@ -1849,7 +2010,9 @@ var expandPairTrait = {
         currentPairIndex++;
       }
 
+      return newParsed;
     }, []);
+    return {
       postparsed: newParsed,
       errors: errors
     };
@@ -1857,19 +2020,24 @@ var expandPairTrait = {
 };
 
 module.exports = function () {
+  return wrapper(expandPairTrait);
 };
 },{"../doc-utils":4,"../errors":6,"../mergesort":9,"../module-wrapper":10,"../traits":22}],12:[function(require,module,exports){
 "use strict";
 
+function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _nonIterableRest(); }
 
 function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance"); }
 
+function _iterableToArrayLimit(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
 
+function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
 
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 var _require = require("../doc-utils"),
     mergeObjects = _require.mergeObjects,
@@ -1889,16 +2057,21 @@ var _require2 = require("../prefix-matcher"),
 var moduleName = "loop";
 
 function hasContent(parts) {
+  return parts.some(function (part) {
+    return isContent(part);
   });
 }
 
 function isEnclosedByParagraphs(parsed) {
   if (parsed.length === 0) {
+    return false;
   }
 
+  return isParagraphStart(parsed[0]) && isParagraphEnd(last(parsed));
 }
 
 function getOffset(chunk) {
+  return hasContent(chunk) ? 0 : chunk.length;
 }
 
 var LoopModule =
@@ -1928,6 +2101,7 @@ function () {
           end = _this$prefix.end;
 
       if (match(start, placeHolderContent)) {
+        return {
           type: type,
           value: getValue(start, placeHolderContent),
           expandTo: "auto",
@@ -1938,6 +2112,7 @@ function () {
       }
 
       if (match(inverted, placeHolderContent)) {
+        return {
           type: type,
           value: getValue(inverted, placeHolderContent),
           expandTo: "auto",
@@ -1948,6 +2123,7 @@ function () {
       }
 
       if (match(end, placeHolderContent)) {
+        return {
           type: type,
           value: getValue(end, placeHolderContent),
           module: module,
@@ -1961,6 +2137,7 @@ function () {
             expandTo = _getValues2[1],
             value = _getValues2[2];
 
+        return {
           type: type,
           value: value,
           expandTo: expandTo,
@@ -1970,13 +2147,16 @@ function () {
         };
       }
 
+      return null;
     }
   }, {
     key: "getTraits",
     value: function getTraits(traitName, parsed) {
       if (traitName !== "expandPair") {
+        return;
       }
 
+      return parsed.reduce(function (tags, part, offset) {
         if (part.type === "placeholder" && part.module === moduleName) {
           tags.push({
             part: part,
@@ -1984,6 +2164,7 @@ function () {
           });
         }
 
+        return tags;
       }, []);
     }
   }, {
@@ -1992,21 +2173,27 @@ function () {
       var basePart = _ref.basePart;
 
       if (!isEnclosedByParagraphs(parsed)) {
+        return parsed;
       }
 
       if (!basePart || basePart.expandTo !== "auto" || basePart.module !== moduleName) {
+        return parsed;
       }
 
       var chunks = chunkBy(parsed, function (p) {
         if (isParagraphStart(p)) {
+          return "start";
         }
 
         if (isParagraphEnd(p)) {
+          return "end";
         }
 
+        return null;
       });
 
       if (chunks.length <= 2) {
+        return parsed;
       }
 
       var firstChunk = chunks[0];
@@ -2015,13 +2202,16 @@ function () {
       var lastOffset = getOffset(lastChunk);
 
       if (firstOffset === 0 || lastOffset === 0) {
+        return parsed;
       }
 
+      return parsed.slice(firstOffset, parsed.length - lastOffset);
     }
   }, {
     key: "render",
     value: function render(part, options) {
       if (part.type !== "placeholder" || part.module !== moduleName) {
+        return null;
       }
 
       var totalValue = [];
@@ -2043,11 +2233,13 @@ function () {
       });
 
       if (result === false) {
+        return {
           value: part.emptyValue || "",
           errors: errors
         };
       }
 
+      return {
         value: totalValue.join(""),
         errors: errors
       };
@@ -2056,6 +2248,7 @@ function () {
     key: "resolve",
     value: function resolve(part, options) {
       if (part.type !== "placeholder" || part.module !== moduleName) {
+        return null;
       }
 
       var value = options.scopeManager.getValue(part.value, {
@@ -2072,18 +2265,25 @@ function () {
         })));
       }
 
+      return Promise.resolve(value).then(function (value) {
         options.scopeManager.loopOverValue(value, loopOver, part.inverted);
+        return Promise.all(promises).then(function (r) {
+          return r.map(function (_ref2) {
             var resolved = _ref2.resolved;
+            return resolved;
           });
         });
       }).then(function (r) {
+        return r;
       });
     }
   }]);
 
+  return LoopModule;
 }();
 
 module.exports = function () {
+  return wrapper(new LoopModule());
 };
 },{"../doc-utils":4,"../module-wrapper":10,"../prefix-matcher":18}],13:[function(require,module,exports){
 "use strict";
@@ -2092,6 +2292,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
 
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 var traits = require("../traits");
 
@@ -2127,6 +2328,7 @@ function getInner(_ref) {
   var paragraphParts = postparsed.slice(left + 1, right);
   paragraphParts.forEach(function (p, i) {
     if (i === index - left - 1) {
+      return;
     }
 
     if (isContent(p)) {
@@ -2136,6 +2338,7 @@ function getInner(_ref) {
       });
     }
   });
+  return part;
 }
 
 var RawXmlModule =
@@ -2152,6 +2355,7 @@ function () {
     key: "optionsTransformer",
     value: function optionsTransformer(options, docxtemplater) {
       this.fileTypeConfig = docxtemplater.fileTypeConfig;
+      return options;
     }
   }, {
     key: "parse",
@@ -2159,16 +2363,19 @@ function () {
       var type = "placeholder";
 
       if (match(this.prefix, placeHolderContent)) {
+        return {
           type: type,
           value: getValue(this.prefix, placeHolderContent),
           module: moduleName
         };
       }
 
+      return null;
     }
   }, {
     key: "postparse",
     value: function postparse(postparsed) {
+      return traits.expandToOne(postparsed, {
         moduleName: moduleName,
         getInner: getInner,
         expandTo: this.fileTypeConfig.tagRawXml
@@ -2178,6 +2385,7 @@ function () {
     key: "render",
     value: function render(part, options) {
       if (part.module !== moduleName) {
+        return null;
       }
 
       var value = options.scopeManager.getValue(part.value, {
@@ -2189,10 +2397,12 @@ function () {
       }
 
       if (!value) {
+        return {
           value: part.emptyValue || ""
         };
       }
 
+      return {
         value: value
       };
     }
@@ -2200,20 +2410,26 @@ function () {
     key: "resolve",
     value: function resolve(part, options) {
       if (part.type !== "placeholder" || part.module !== moduleName) {
+        return null;
       }
 
+      return options.scopeManager.getValueAsync(part.value, {
         part: part
       }).then(function (value) {
         if (value == null) {
+          return options.nullGetter(part);
         }
 
+        return value;
       });
     }
   }]);
 
+  return RawXmlModule;
 }();
 
 module.exports = function () {
+  return wrapper(new RawXmlModule());
 };
 },{"../doc-utils":4,"../errors":6,"../module-wrapper":10,"../prefix-matcher":18,"../traits":22}],14:[function(require,module,exports){
 "use strict";
@@ -2222,6 +2438,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
 
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 var wrapper = require("../module-wrapper");
 
@@ -2267,10 +2484,12 @@ function () {
     value: function getRenderedMap(mapper) {
       var _this = this;
 
+      return Object.keys(this.compiled).reduce(function (mapper, from) {
         mapper[from] = {
           from: from,
           data: _this.data
         };
+        return mapper;
       }, mapper);
     }
   }, {
@@ -2278,6 +2497,7 @@ function () {
     value: function optionsTransformer(options, docxtemplater) {
       this.parser = docxtemplater.parser;
       this.fileType = docxtemplater.fileType;
+      return options;
     }
   }, {
     key: "postparse",
@@ -2301,6 +2521,7 @@ function () {
           }
         }
       });
+      return {
         postparsed: postparsed,
         errors: errors
       };
@@ -2361,20 +2582,25 @@ function () {
           var br = this.fileType === "docx" ? "<w:r><w:br/></w:r>" : "<a:br/>";
           var lines = value.split("\n");
           var runprops = this.recordedRun.join("");
+          return {
             value: lines.map(function (line) {
+              return utf8ToWord(line);
             }).join("</".concat(p, ":t></").concat(p, ":r>").concat(br, "<").concat(p, ":r>").concat(runprops, "<").concat(p, ":t").concat(this.fileType === "docx" ? ' xml:space="preserve"' : "", ">"))
           };
         }
 
+        return {
           value: utf8ToWord(value)
         };
       }
     }
   }]);
 
+  return Render;
 }();
 
 module.exports = function () {
+  return wrapper(new Render());
 };
 },{"../doc-utils":4,"../errors":6,"../module-wrapper":10}],15:[function(require,module,exports){
 "use strict";
@@ -2393,20 +2619,25 @@ var wtEnd = "</w:t>";
 var wtEndlen = wtEnd.length;
 
 function isWtStart(part) {
+  return isTextStart(part) && part.tag === "w:t";
 }
 
 function addXMLPreserve(chunk, index) {
   var tag = chunk[index].value;
 
   if (chunk[index + 1].value === "</w:t>") {
+    return tag;
   }
 
   if (tag.indexOf('xml:space="preserve"') !== -1) {
+    return tag;
   }
 
+  return tag.substr(0, tag.length - 1) + ' xml:space="preserve">';
 }
 
 function isInsideLoop(meta, chunk) {
+  return meta && meta.basePart && chunk.length > 1;
 }
 
 var spacePreserve = {
@@ -2418,6 +2649,7 @@ var spacePreserve = {
         lastTextTag = 0;
 
     function isStartingPlaceHolder(part, chunk) {
+      return !endLindex && part.type === "placeholder" && (!part.module || part.module === "loop") && chunk.length > 1;
     }
 
     var result = postparsed.reduce(function (postparsed, part) {
@@ -2428,6 +2660,7 @@ var spacePreserve = {
 
       if (!inTextTag) {
         postparsed.push(part);
+        return postparsed;
       }
 
       chunk.push(part);
@@ -2454,10 +2687,14 @@ var spacePreserve = {
         lastTextTag = 0;
       }
 
+      return postparsed;
     }, []);
     Array.prototype.push.apply(result, chunk);
+    return result;
   },
   postrender: function postrender(parts) {
+    return parts.filter(function (p) {
+      return p.length !== 0;
     }).reduce(function (newParts, p, index, parts) {
       if (p.indexOf('<w:t xml:space="preserve"></w:t>') !== -1) {
         p = p.replace(/<w:t xml:space="preserve"><\/w:t>/g, "<w:t/>");
@@ -2469,16 +2706,20 @@ var spacePreserve = {
       }
 
       newParts.push(p);
+      return newParts;
     }, []);
   }
 };
 
 module.exports = function () {
+  return wrapper(spacePreserve);
 };
 },{"../doc-utils":4,"../module-wrapper":10}],16:[function(require,module,exports){
 "use strict";
 
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; var ownKeys = Object.keys(source); if (typeof Object.getOwnPropertySymbols === 'function') { ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function (sym) { return Object.getOwnPropertyDescriptor(source, sym).enumerable; })); } ownKeys.forEach(function (key) { _defineProperty(target, key, source[key]); }); } return target; }
 
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 var _require = require("./doc-utils"),
     wordToUtf8 = _require.wordToUtf8,
@@ -2497,6 +2738,7 @@ function moduleParse(modules, placeHolderContent, parsed, startOffset, endLindex
       moduleParsed.lIndex = endLindex;
       moduleParsed.raw = placeHolderContent;
       parsed.push(moduleParsed);
+      return parsed;
     }
   }
 
@@ -2507,17 +2749,21 @@ function moduleParse(modules, placeHolderContent, parsed, startOffset, endLindex
     endLindex: endLindex,
     lIndex: endLindex
   });
+  return parsed;
 }
 
 var parser = {
   postparse: function postparse(postparsed, modules) {
     function getTraits(traitName, postparsed) {
+      return modules.map(function (module) {
+        return module.getTraits(traitName, postparsed);
       });
     }
 
     var errors = [];
 
     function postparse(postparsed, options) {
+      return modules.reduce(function (postparsed, module) {
         var r = module.postparse(postparsed, _objectSpread({}, options, {
           postparse: postparse,
           getTraits: getTraits
@@ -2525,11 +2771,14 @@ var parser = {
 
         if (r.errors) {
           errors = concatArrays([errors, r.errors]);
+          return r.postparsed;
         }
 
+        return r;
       }, postparsed);
     }
 
+    return {
       postparsed: postparse(postparsed),
       errors: errors
     };
@@ -2539,6 +2788,7 @@ var parser = {
     var placeHolderContent = "";
     var startOffset;
     var tailParts = [];
+    return lexed.reduce(function lexedToParsed(parsed, token) {
       if (token.type === "delimiter") {
         inPlaceHolder = token.position === "start";
 
@@ -2557,17 +2807,21 @@ var parser = {
         }
 
         placeHolderContent = "";
+        return parsed;
       }
 
       if (!inPlaceHolder) {
         parsed.push(token);
+        return parsed;
       }
 
       if (token.type !== "content" || token.position !== "insidetag") {
         tailParts.push(token);
+        return parsed;
       }
 
       placeHolderContent += token.value;
+      return parsed;
     }, []);
   }
 };
@@ -2581,6 +2835,7 @@ function postrender(parts, options) {
     parts = _module.postrender(parts, options);
   }
 
+  return parts.join("");
 }
 
 module.exports = postrender;
@@ -2589,22 +2844,27 @@ module.exports = postrender;
 
 function match(condition, placeHolderContent) {
   if (typeof condition === "string") {
+    return placeHolderContent.substr(0, condition.length) === condition;
   }
 
   if (condition instanceof RegExp) {
+    return condition.test(placeHolderContent);
   }
 }
 
 function getValue(condition, placeHolderContent) {
   if (typeof condition === "string") {
+    return placeHolderContent.substr(condition.length);
   }
 
   if (condition instanceof RegExp) {
+    return placeHolderContent.match(condition)[1];
   }
 }
 
 function getValues(condition, placeHolderContent) {
   if (condition instanceof RegExp) {
+    return placeHolderContent.match(condition);
   }
 }
 
@@ -2630,9 +2890,11 @@ function moduleRender(part, options) {
     moduleRendered = _module.render(part, options);
 
     if (moduleRendered) {
+      return moduleRendered;
     }
   }
 
+  return false;
 }
 
 function render(options) {
@@ -2641,6 +2903,7 @@ function render(options) {
       scopeManager = options.scopeManager;
 
   options.nullGetter = function (part, sm) {
+    return baseNullGetter(part, sm || scopeManager);
   };
 
   var errors = [];
@@ -2652,13 +2915,16 @@ function render(options) {
         errors = concatArrays([errors, moduleRendered.errors]);
       }
 
+      return moduleRendered.value;
     }
 
     if (part.type === "content" || part.type === "tag") {
+      return part.value;
     }
 
     throwUnimplementedTagType(part);
   });
+  return {
     errors: errors,
     parts: parts
   };
@@ -2676,9 +2942,11 @@ function moduleResolve(part, options) {
     moduleResolved = _module.resolve(part, options);
 
     if (moduleResolved) {
+      return moduleResolved;
     }
   }
 
+  return false;
 }
 
 function resolve(options) {
@@ -2688,13 +2956,16 @@ function resolve(options) {
       scopeManager = options.scopeManager;
 
   options.nullGetter = function (part, sm) {
+    return baseNullGetter(part, sm || scopeManager);
   };
 
   options.resolved = resolved;
   var errors = [];
+  return Promise.all(compiled.map(function (part) {
     var moduleResolved = moduleResolve(part, options);
 
     if (moduleResolved) {
+      return moduleResolved.then(function (value) {
         resolved.push({
           tag: part.value,
           value: value,
@@ -2704,6 +2975,7 @@ function resolve(options) {
     }
 
     if (part.type === "placeholder") {
+      return scopeManager.getValueAsync(part.value, {
         part: part
       }).then(function (value) {
         if (value == null) {
@@ -2715,11 +2987,15 @@ function resolve(options) {
           value: value,
           lIndex: part.lIndex
         });
+        return value;
       });
     }
 
+    return;
   }).filter(function (a) {
+    return a;
   })).then(function () {
+    return {
       errors: errors,
       resolved: resolved
     };
@@ -2734,6 +3010,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
 
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 var _require = require("./errors"),
     getScopeParserExecutionError = _require.getScopeParserExecutionError;
@@ -2746,9 +3023,11 @@ function find(list, fn) {
     value = list[i];
 
     if (fn.call(this, value, i, list)) {
+      return value;
     }
   }
 
+  return undefined;
 }
 
 function _getValue(tag, meta, num) {
@@ -2762,9 +3041,12 @@ function _getValue(tag, meta, num) {
     this.scopePath.forEach(function (p, index) {
       var lIndex = _this.scopeLindex[index];
       w = find(w, function (r) {
+        return r.lIndex === lIndex;
       });
       w = w.value[_this.scopePathItem[index]];
     });
+    return find(w, function (r) {
+      return meta.part.lIndex === r.lIndex;
     }).value;
   } // search in the scopes (in reverse order) and keep the first defined value
 
@@ -2785,8 +3067,10 @@ function _getValue(tag, meta, num) {
   }
 
   if (result == null && this.num > 0) {
+    return _getValue.call(this, tag, meta, num - 1);
   }
 
+  return result;
 }
 
 function _getValueAsync(tag, meta, num) {
@@ -2798,6 +3082,7 @@ function _getValueAsync(tag, meta, num) {
   var parser = this.parser(tag, {
     scopePath: this.scopePath
   });
+  return Promise.resolve(parser.get(scope, this.getContext(meta))).catch(function (error) {
     throw getScopeParserExecutionError({
       tag: tag,
       scope: scope,
@@ -2805,8 +3090,10 @@ function _getValueAsync(tag, meta, num) {
     });
   }).then(function (result) {
     if (result == null && num > 0) {
+      return _getValueAsync.call(_this2, tag, meta, num - 1);
     }
 
+    return result;
   });
 } // This class responsibility is to manage the scope
 
@@ -2829,6 +3116,7 @@ function () {
     key: "loopOver",
     value: function loopOver(tag, callback, inverted, meta) {
       inverted = inverted || false;
+      return this.loopOverValue(this.getValue(tag, meta), callback, inverted);
     }
   }, {
     key: "functorIfInverted",
@@ -2837,10 +3125,12 @@ function () {
         functor(value, i);
       }
 
+      return inverted;
     }
   }, {
     key: "isValueFalsy",
     value: function isValueFalsy(value, type) {
+      return value == null || !value || type === "[object Array]" && value.length === 0;
     }
   }, {
     key: "loopOverValue",
@@ -2853,6 +3143,7 @@ function () {
       var currentValue = this.scopeList[this.num];
 
       if (this.isValueFalsy(value, type)) {
+        return this.functorIfInverted(inverted, functor, currentValue, 0);
       }
 
       if (type === "[object Array]") {
@@ -2861,25 +3152,31 @@ function () {
           this.functorIfInverted(!inverted, functor, scope, i);
         }
 
+        return true;
       }
 
       if (type === "[object Object]") {
+        return this.functorIfInverted(!inverted, functor, value, 0);
       }
 
+      return this.functorIfInverted(!inverted, functor, currentValue, 0);
     }
   }, {
     key: "getValue",
     value: function getValue(tag, meta) {
       var num = this.scopeList.length - 1;
+      return _getValue.call(this, tag, meta, num);
     }
   }, {
     key: "getValueAsync",
     value: function getValueAsync(tag, meta) {
       var num = this.scopeList.length - 1;
+      return _getValueAsync.call(this, tag, meta, num);
     }
   }, {
     key: "getContext",
     value: function getContext(meta) {
+      return {
         num: this.num,
         meta: meta,
         scopeList: this.scopeList,
@@ -2891,6 +3188,7 @@ function () {
   }, {
     key: "createSubScopeManager",
     value: function createSubScopeManager(scope, tag, i, part) {
+      return new ScopeManager({
         resolved: this.resolved,
         parser: this.parser,
         scopeList: this.scopeList.concat(scope),
@@ -2901,6 +3199,7 @@ function () {
     }
   }]);
 
+  return ScopeManager;
 }();
 
 module.exports = function (options) {
@@ -2908,10 +3207,12 @@ module.exports = function (options) {
   options.scopePathItem = [];
   options.scopeLindex = [];
   options.scopeList = [options.tags];
+  return new ScopeManager(options);
 };
 },{"./errors":6}],22:[function(require,module,exports){
 "use strict";
 
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
 var _require = require("./doc-utils"),
     getRightOrNull = _require.getRightOrNull,
@@ -2932,23 +3233,29 @@ var _require2 = require("./errors"),
 
 function lastTagIsOpenTag(array, tag) {
   if (array.length === 0) {
+    return false;
   }
 
   var lastTag = array[array.length - 1];
   var innerLastTag = lastTag.tag.substr(1);
   var innerCurrentTag = tag.substr(2, tag.length - 3);
+  return innerLastTag.indexOf(innerCurrentTag) === 0;
 }
 
 function addTag(array, tag) {
   array.push({
     tag: tag
   });
+  return array;
 }
 
 function getListXmlElements(parts) {
   /*
+  get the different closing and opening tags between two texts (doesn't take into account tags that are opened then closed (those that are closed then opened are returned)):
+  returns:[{"tag":"</w:r>","offset":13},{"tag":"</w:p>","offset":265},{"tag":"</w:tc>","offset":271},{"tag":"<w:tc>","offset":828},{"tag":"<w:p>","offset":883},{"tag":"<w:r>","offset":1483}]
   */
   var tags = parts.filter(function (part) {
+    return part.type === "tag";
   });
   var result = [];
 
@@ -2966,6 +3273,7 @@ function getListXmlElements(parts) {
     }
   }
 
+  return result;
 }
 
 function has(name, xmlElements) {
@@ -2973,21 +3281,26 @@ function has(name, xmlElements) {
     var xmlElement = xmlElements[i];
 
     if (xmlElement.tag.indexOf("<".concat(name)) === 0) {
+      return true;
     }
   }
 
+  return false;
 }
 
 function getExpandToDefault(postparsed, pair, expandTags) {
   var parts = postparsed.slice(pair[0].offset, pair[1].offset);
   var xmlElements = getListXmlElements(parts);
   var closingTagCount = xmlElements.filter(function (xmlElement) {
+    return xmlElement.tag[1] === "/";
   }).length;
   var startingTagCount = xmlElements.filter(function (xmlElement) {
     var tag = xmlElement.tag;
+    return tag[1] !== "/" && tag[tag.length - 2] !== "/";
   }).length;
 
   if (closingTagCount !== startingTagCount) {
+    return {
       error: getLoopPositionProducesInvalidXMLError({
         tag: pair[0].part.value
       })
@@ -3006,18 +3319,23 @@ function getExpandToDefault(postparsed, pair, expandTags) {
         var right = getRightOrNull(postparsed, contains, pair[1].offset);
 
         if (left === null || right === null) {
+          return "continue";
         }
 
         var chunks = chunkBy(postparsed.slice(left, right), function (p) {
           if (isTagStart(contains, p)) {
+            return "start";
           }
 
           if (isTagEnd(contains, p)) {
+            return "end";
           }
 
+          return null;
         });
 
         if (chunks.length <= 2) {
+          return "continue";
         }
 
         var firstChunk = chunks[0];
@@ -3026,9 +3344,11 @@ function getExpandToDefault(postparsed, pair, expandTags) {
         var lastContent = lastChunk.filter(isContent);
 
         if (firstContent.length !== 1 || lastContent.length !== 1) {
+          return "continue";
         }
       }
 
+      return {
         v: {
           value: expand
         }
@@ -3044,9 +3364,11 @@ function getExpandToDefault(postparsed, pair, expandTags) {
         continue;
 
       default:
+        if (_typeof(_ret) === "object") return _ret.v;
     }
   }
 
+  return false;
 }
 
 function expandOne(part, postparsed, options) {
@@ -3054,6 +3376,7 @@ function expandOne(part, postparsed, options) {
   var index = postparsed.indexOf(part);
 
   if (!expandTo) {
+    return postparsed;
   }
 
   var right, left;
@@ -3092,6 +3415,7 @@ function expandOne(part, postparsed, options) {
     inner = [inner];
   }
 
+  return concatArrays([postparsed.slice(0, left), inner, postparsed.slice(right + 1)]);
 }
 
 function expandToOne(postparsed, options) {
@@ -3107,6 +3431,7 @@ function expandToOne(postparsed, options) {
       elements.push(part);
     }
 
+    return elements;
   }, []);
   expandToElements.forEach(function (part) {
     try {
@@ -3119,6 +3444,7 @@ function expandToOne(postparsed, options) {
       }
     }
   });
+  return {
     postparsed: postparsed,
     errors: errors
   };
@@ -3176,6 +3502,7 @@ function handleRecursiveCase(res) {
     pn.last = true;
 
     if (pn.array[0].indexOf("/>") !== -1) {
+      return;
     } // add at the end
 
 
@@ -3184,6 +3511,7 @@ function handleRecursiveCase(res) {
 
   r = new RegExp("(<(?:".concat(res.tagsXmlArrayJoined, ")[^>]*>)([^>]+)$"));
   res.content.replace(r, replacerPush);
+  return res;
 }
 
 module.exports = function xmlMatcher(content, tagsXmlArray) {
@@ -3193,15 +3521,18 @@ module.exports = function xmlMatcher(content, tagsXmlArray) {
   res.tagsXmlArrayJoined = res.tagsXmlArray.join("|");
   var regexp = new RegExp("(?:(<(?:".concat(res.tagsXmlArrayJoined, ")[^>]*>)([^<>]*)</(?:").concat(res.tagsXmlArrayJoined, ")>)|(<(?:").concat(res.tagsXmlArrayJoined, ")[^>]*/>)"), "g");
   res.matches = pregMatchAll(regexp, res.content);
+  return handleRecursiveCase(res);
 };
 },{"./doc-utils":4}],24:[function(require,module,exports){
 "use strict";
 
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
 
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
 
 var _require = require("./doc-utils"),
     wordToUtf8 = _require.wordToUtf8,
@@ -3229,7 +3560,9 @@ var resolve = require("./resolve.js");
 function _getFullText(content, tagsXmlArray) {
   var matcher = xmlMatcher(content, tagsXmlArray);
   var result = matcher.matches.map(function (match) {
+    return match.array[2];
   });
+  return wordToUtf8(convertSpaces(result.join("")));
 }
 
 module.exports =
@@ -3269,6 +3602,7 @@ function () {
         tags: this.tags,
         parser: this.parser
       });
+      return this;
     }
   }, {
     key: "resolveTags",
@@ -3283,7 +3617,10 @@ function () {
       var options = this.getOptions();
       options.scopeManager = createScope(options);
       options.resolve = resolve;
+      return resolve(options).then(function (_ref) {
         var resolved = _ref.resolved;
+        return Promise.all(resolved.map(function (r) {
+          return Promise.resolve(r);
         })).then(function (resolved) {
           _this.setModules({
             inspect: {
@@ -3291,12 +3628,14 @@ function () {
             }
           });
 
+          return _this.resolved = resolved;
         });
       });
     }
   }, {
     key: "getFullText",
     value: function getFullText() {
+      return _getFullText(this.content, this.fileTypeConfig.tagsXmlTextArray);
     }
   }, {
     key: "setModules",
@@ -3349,6 +3688,7 @@ function () {
       });
       allErrors = allErrors.concat(postparsedErrors);
       this.errorChecker(allErrors);
+      return this;
     }
   }, {
     key: "errorChecker",
@@ -3372,17 +3712,22 @@ function () {
 
       var value = this.modules.reduce(function (value, module) {
         if (value != null) {
+          return value;
         }
 
+        return module.nullGetter(part, sm, _this3);
       }, null);
 
       if (value != null) {
+        return value;
       }
 
+      return this.nullGetter(part, sm);
     }
   }, {
     key: "getOptions",
     value: function getOptions() {
+      return {
         compiled: this.postparsed,
         tags: this.tags,
         modules: this.modules,
@@ -3412,9 +3757,11 @@ function () {
           content: this.content
         }
       });
+      return this;
     }
   }]);
 
+  return XmlTemplater;
 }();
 },{"./doc-utils":4,"./errors":6,"./lexer":8,"./parser.js":16,"./postrender.js":17,"./render.js":19,"./resolve.js":20,"./scope-manager":21,"./xml-matcher":23}],25:[function(require,module,exports){
 function DOMParser(options){
@@ -3446,10 +3793,12 @@ DOMParser.prototype.parseFromString = function(source,mimeType){
 	}else{
 		sax.errorHandler.error("invalid doc source");
 	}
+	return domBuilder.doc;
 }
 function buildErrorHandler(errorImpl,domBuilder,locator){
 	if(!errorImpl){
 		if(domBuilder instanceof DOMHandler){
+			return domBuilder;
 		}
 		errorImpl = domBuilder ;
 	}
@@ -3468,6 +3817,7 @@ function buildErrorHandler(errorImpl,domBuilder,locator){
 	build('warning');
 	build('error');
 	build('fatalError');
+	return errorHandler;
 }
 
 //console.log('#\n\n\n\n\n\n\n####')
@@ -3601,13 +3951,17 @@ DOMHandler.prototype = {
 }
 function _locator(l){
 	if(l){
+		return '\n@'+(l.systemId ||'')+'#[line:'+l.lineNumber+',col:'+l.columnNumber+']'
 	}
 }
 function _toString(chars,start,length){
 	if(typeof chars == 'string'){
+		return chars.substr(start,length)
 	}else{//java sax connect width xmldom on rhino(what about: "? && !(chars instanceof String)")
 		if(chars.length >= start+length || start){
+			return new java.lang.String(chars,start,length)+'';
 		}
+		return chars;
 	}
 }
 
@@ -3643,6 +3997,7 @@ function _toString(chars,start,length){
  *  #unparsedEntityDecl(name, publicId, systemId, notationName) {};
  */
 "endDTD,startEntity,endEntity,attributeDecl,elementDecl,externalEntityDecl,internalEntityDecl,resolveEntity,getExternalSubset,notationDecl,unparsedEntityDecl".replace(/\w+/g,function(key){
+	DOMHandler.prototype[key] = function(){return null}
 })
 
 /* Private static helpers treated below as private instance methods, so don't need to add these to the public API; we might use a Relator to also get rid of non-standard public properties */
@@ -3746,6 +4101,7 @@ function DOMException(code, message) {
 	}
 	error.code = code;
 	if(message) this.message = this.message + ": " + message;
+	return error;
 };
 DOMException.prototype = Error.prototype;
 copy(ExceptionCode,DOMException)
@@ -3763,17 +4119,21 @@ NodeList.prototype = {
 	 */
 	length:0, 
 	/**
+	 * Returns the indexth item in the collection. If index is greater than or equal to the number of nodes in the list, this returns null.
 	 * @standard level1
 	 * @param index  unsigned long 
 	 *   Index into the collection.
+	 * @return Node
 	 * 	The node at the indexth position in the NodeList, or null if that is not a valid index. 
 	 */
 	item: function(index) {
+		return this[index] || null;
 	},
 	toString:function(isHTML,nodeFilter){
 		for(var buf = [], i = 0;i<this.length;i++){
 			serializeToString(this[i],buf,isHTML,nodeFilter);
 		}
+		return buf.join('');
 	}
 };
 function LiveNodeList(node,refresh){
@@ -3793,6 +4153,7 @@ function _updateLiveList(list){
 }
 LiveNodeList.prototype.item = function(i){
 	_updateLiveList(this);
+	return this[i];
 }
 
 _extends(LiveNodeList,NodeList);
@@ -3808,6 +4169,7 @@ function NamedNodeMap() {
 function _findNodeIndex(list,node){
 	var i = list.length;
 	while(i--){
+		if(list[i] === node){return i}
 	}
 }
 
@@ -3851,6 +4213,7 @@ NamedNodeMap.prototype = {
 	item:NodeList.prototype.item,
 	getNamedItem: function(key) {
 //		if(key.indexOf(':')>0 || key == 'xmlns'){
+//			return null;
 //		}
 		//console.log()
 		var i = this.length;
@@ -3858,6 +4221,7 @@ NamedNodeMap.prototype = {
 			var attr = this[i];
 			//console.log(attr.nodeName,key)
 			if(attr.nodeName == key){
+				return attr;
 			}
 		}
 	},
@@ -3868,7 +4232,9 @@ NamedNodeMap.prototype = {
 		}
 		var oldAttr = this.getNamedItem(attr.nodeName);
 		_addNamedNode(this._ownerElement,this,attr,oldAttr);
+		return oldAttr;
 	},
+	/* returns Node */
 	setNamedItemNS: function(attr) {// raises: WRONG_DOCUMENT_ERR,NO_MODIFICATION_ALLOWED_ERR,INUSE_ATTRIBUTE_ERR
 		var el = attr.ownerElement, oldAttr;
 		if(el && el!=this._ownerElement){
@@ -3876,11 +4242,14 @@ NamedNodeMap.prototype = {
 		}
 		oldAttr = this.getNamedItemNS(attr.namespaceURI,attr.localName);
 		_addNamedNode(this._ownerElement,this,attr,oldAttr);
+		return oldAttr;
 	},
 
+	/* returns Node */
 	removeNamedItem: function(key) {
 		var attr = this.getNamedItem(key);
 		_removeNamedNode(this._ownerElement,this,attr);
+		return attr;
 		
 		
 	},// raises: NOT_FOUND_ERR,NO_MODIFICATION_ALLOWED_ERR
@@ -3889,14 +4258,17 @@ NamedNodeMap.prototype = {
 	removeNamedItemNS:function(namespaceURI,localName){
 		var attr = this.getNamedItemNS(namespaceURI,localName);
 		_removeNamedNode(this._ownerElement,this,attr);
+		return attr;
 	},
 	getNamedItemNS: function(namespaceURI, localName) {
 		var i = this.length;
 		while(i--){
 			var node = this[i];
 			if(node.localName == localName && node.namespaceURI == namespaceURI){
+				return node;
 			}
 		}
+		return null;
 	}
 };
 /**
@@ -3915,7 +4287,9 @@ DOMImplementation.prototype = {
 	hasFeature: function(/* string */ feature, /* string */ version) {
 		var versions = this._features[feature.toLowerCase()];
 		if (versions && (!version || version in versions)) {
+			return true;
 		} else {
+			return false;
 		}
 	},
 	// Introduced in DOM Level 2:
@@ -3931,6 +4305,7 @@ DOMImplementation.prototype = {
 			var root = doc.createElementNS(namespaceURI,qualifiedName);
 			doc.appendChild(root);
 		}
+		return doc;
 	},
 	// Introduced in DOM Level 2:
 	createDocumentType:function(qualifiedName, publicId, systemId){// raises:INVALID_CHARACTER_ERR,NAMESPACE_ERR
@@ -3945,6 +4320,7 @@ DOMImplementation.prototype = {
 		//TODO:..
 		//  readonly attribute NamedNodeMap     entities;
 		//  readonly attribute NamedNodeMap     notations;
+		return node;
 	}
 };
 
@@ -3971,6 +4347,7 @@ Node.prototype = {
 	localName : null,
 	// Modified in DOM Level 2:
 	insertBefore:function(newChild, refChild){//raises 
+		return _insertBefore(this,newChild,refChild);
 	},
 	replaceChild:function(newChild, oldChild){//raises 
 		this.insertBefore(newChild,oldChild);
@@ -3979,12 +4356,16 @@ Node.prototype = {
 		}
 	},
 	removeChild:function(oldChild){
+		return _removeChild(this,oldChild);
 	},
 	appendChild:function(newChild){
+		return this.insertBefore(newChild,null);
 	},
 	hasChildNodes:function(){
+		return this.firstChild != null;
 	},
 	cloneNode:function(deep){
+		return cloneNode(this.ownerDocument||this,this,deep);
 	},
 	// Modified in DOM Level 2:
 	normalize:function(){
@@ -4002,9 +4383,11 @@ Node.prototype = {
 	},
   	// Introduced in DOM Level 2:
 	isSupported:function(feature, version){
+		return this.ownerDocument.implementation.hasFeature(feature,version);
 	},
     // Introduced in DOM Level 2:
     hasAttributes:function(){
+    	return this.attributes.length>0;
     },
     lookupPrefix:function(namespaceURI){
     	var el = this;
@@ -4014,11 +4397,13 @@ Node.prototype = {
     		if(map){
     			for(var n in map){
     				if(map[n] == namespaceURI){
+    					return n;
     				}
     			}
     		}
     		el = el.nodeType == ATTRIBUTE_NODE?el.ownerDocument : el.parentNode;
     	}
+    	return null;
     },
     // Introduced in DOM Level 3:
     lookupNamespaceURI:function(prefix){
@@ -4028,19 +4413,23 @@ Node.prototype = {
     		//console.dir(map)
     		if(map){
     			if(prefix in map){
+    				return map[prefix] ;
     			}
     		}
     		el = el.nodeType == ATTRIBUTE_NODE?el.ownerDocument : el.parentNode;
     	}
+    	return null;
     },
     // Introduced in DOM Level 3:
     isDefaultNamespace:function(namespaceURI){
     	var prefix = this.lookupPrefix(namespaceURI);
+    	return prefix == null;
     }
 };
 
 
 function _xmlEncoder(c){
+	return c == '<' && '&lt;' ||
          c == '>' && '&gt;' ||
          c == '&' && '&amp;' ||
          c == '"' && '&quot;' ||
@@ -4052,12 +4441,16 @@ copy(NodeType,Node);
 copy(NodeType,Node.prototype);
 
 /**
+ * @param callback return true for continue,false for break
+ * @return boolean true: break visit;
  */
 function _visitNode(node,callback){
 	if(callback(node)){
+		return true;
 	}
 	if(node = node.firstChild){
 		do{
+			if(_visitNode(node,callback)){return true}
         }while(node=node.nextSibling)
     }
 }
@@ -4124,6 +4517,7 @@ function _removeChild(parentNode,child){
 		parentNode.lastChild = previous;
 	}
 	_onUpdateChild(parentNode.ownerDocument,parentNode);
+	return child;
 }
 /**
  * preformance key(refChild == null)
@@ -4136,6 +4530,7 @@ function _insertBefore(parentNode,newChild,nextChild){
 	if(newChild.nodeType === DOCUMENT_FRAGMENT_NODE){
 		var newFirst = newChild.firstChild;
 		if (newFirst == null) {
+			return newChild;
 		}
 		var newLast = newChild.lastChild;
 	}else{
@@ -4165,6 +4560,7 @@ function _insertBefore(parentNode,newChild,nextChild){
 	if (newChild.nodeType == DOCUMENT_FRAGMENT_NODE) {
 		newChild.firstChild = newChild.lastChild = null;
 	}
+	return newChild;
 }
 function _appendSingleChild(parentNode,newChild){
 	var cp = newChild.parentNode;
@@ -4184,6 +4580,7 @@ function _appendSingleChild(parentNode,newChild){
 	}
 	parentNode.lastChild = newChild;
 	_onUpdateChild(parentNode.ownerDocument,parentNode,newChild);
+	return newChild;
 	//console.log("__aa",parentNode.lastChild.nextSibling == null)
 }
 Document.prototype = {
@@ -4202,19 +4599,23 @@ Document.prototype = {
 				this.insertBefore(child,refChild);
 				child = next;
 			}
+			return newChild;
 		}
 		if(this.documentElement == null && newChild.nodeType == ELEMENT_NODE){
 			this.documentElement = newChild;
 		}
 		
+		return _insertBefore(this,newChild,refChild),(newChild.ownerDocument = this),newChild;
 	},
 	removeChild :  function(oldChild){
 		if(this.documentElement == oldChild){
 			this.documentElement = null;
 		}
+		return _removeChild(this,oldChild);
 	},
 	// Introduced in DOM Level 2:
 	importNode : function(importedNode,deep){
+		return importNode(this,importedNode,deep);
 	},
 	// Introduced in DOM Level 2:
 	getElementById :	function(id){
@@ -4223,9 +4624,11 @@ Document.prototype = {
 			if(node.nodeType == ELEMENT_NODE){
 				if(node.getAttribute('id') == id){
 					rtv = node;
+					return true;
 				}
 			}
 		})
+		return rtv;
 	},
 	
 	//document factory method:
@@ -4237,32 +4640,38 @@ Document.prototype = {
 		node.childNodes = new NodeList();
 		var attrs	= node.attributes = new NamedNodeMap();
 		attrs._ownerElement = node;
+		return node;
 	},
 	createDocumentFragment :	function(){
 		var node = new DocumentFragment();
 		node.ownerDocument = this;
 		node.childNodes = new NodeList();
+		return node;
 	},
 	createTextNode :	function(data){
 		var node = new Text();
 		node.ownerDocument = this;
 		node.appendData(data)
+		return node;
 	},
 	createComment :	function(data){
 		var node = new Comment();
 		node.ownerDocument = this;
 		node.appendData(data)
+		return node;
 	},
 	createCDATASection :	function(data){
 		var node = new CDATASection();
 		node.ownerDocument = this;
 		node.appendData(data)
+		return node;
 	},
 	createProcessingInstruction :	function(target,data){
 		var node = new ProcessingInstruction();
 		node.ownerDocument = this;
 		node.tagName = node.target = target;
 		node.nodeValue= node.data = data;
+		return node;
 	},
 	createAttribute :	function(name){
 		var node = new Attr();
@@ -4271,11 +4680,13 @@ Document.prototype = {
 		node.nodeName	= name;
 		node.localName = name;
 		node.specified = true;
+		return node;
 	},
 	createEntityReference :	function(name){
 		var node = new EntityReference();
 		node.ownerDocument	= this;
 		node.nodeName	= name;
+		return node;
 	},
 	// Introduced in DOM Level 2:
 	createElementNS :	function(namespaceURI,qualifiedName){
@@ -4286,7 +4697,7 @@ Document.prototype = {
 		node.ownerDocument = this;
 		node.nodeName = qualifiedName;
 		node.tagName = qualifiedName;
-		// node.namespaceURI = namespaceURI;
+		// // node.namespaceURI = namespaceURI;
 		if(pl.length == 2){
 			node.prefix = pl[0];
 			node.localName = pl[1];
@@ -4295,6 +4706,7 @@ Document.prototype = {
 			node.localName = qualifiedName;
 		}
 		attrs._ownerElement = node;
+		return node;
 	},
 	// Introduced in DOM Level 2:
 	createAttributeNS :	function(namespaceURI,qualifiedName){
@@ -4303,7 +4715,7 @@ Document.prototype = {
 		node.ownerDocument = this;
 		node.nodeName = qualifiedName;
 		node.name = qualifiedName;
-		//node.namespaceURI = namespaceURI;
+		//// node.namespaceURI = namespaceURI;
 		node.specified = true;
 		if(pl.length == 2){
 			node.prefix = pl[0];
@@ -4312,6 +4724,7 @@ Document.prototype = {
 			//el.prefix = null;
 			node.localName = qualifiedName;
 		}
+		return node;
 	}
 };
 _extends(Document,Node);
@@ -4323,11 +4736,14 @@ function Element() {
 Element.prototype = {
 	nodeType : ELEMENT_NODE,
 	hasAttribute : function(name){
+		return this.getAttributeNode(name)!=null;
 	},
 	getAttribute : function(name){
 		var attr = this.getAttributeNode(name);
+		return attr && attr.value || '';
 	},
 	getAttributeNode : function(name){
+		return this.attributes.getNamedItem(name);
 	},
 	setAttribute : function(name, value){
 		var attr = this.ownerDocument.createAttribute(name);
@@ -4342,15 +4758,20 @@ Element.prototype = {
 	//four real opeartion method
 	appendChild:function(newChild){
 		if(newChild.nodeType === DOCUMENT_FRAGMENT_NODE){
+			return this.insertBefore(newChild,null);
 		}else{
+			return _appendSingleChild(this,newChild);
 		}
 	},
 	setAttributeNode : function(newAttr){
+		return this.attributes.setNamedItem(newAttr);
 	},
 	setAttributeNodeNS : function(newAttr){
+		return this.attributes.setNamedItemNS(newAttr);
 	},
 	removeAttributeNode : function(oldAttr){
 		//console.log(this == oldAttr.ownerElement)
+		return this.attributes.removeNamedItem(oldAttr.nodeName);
 	},
 	//get real attribute name,and remove it by removeAttributeNode
 	removeAttributeNS : function(namespaceURI, localName){
@@ -4359,9 +4780,11 @@ Element.prototype = {
 	},
 	
 	hasAttributeNS : function(namespaceURI, localName){
+		return this.getAttributeNodeNS(namespaceURI, localName)!=null;
 	},
 	getAttributeNS : function(namespaceURI, localName){
 		var attr = this.getAttributeNodeNS(namespaceURI, localName);
+		return attr && attr.value || '';
 	},
 	setAttributeNS : function(namespaceURI, qualifiedName, value){
 		var attr = this.ownerDocument.createAttributeNS(namespaceURI, qualifiedName);
@@ -4369,24 +4792,29 @@ Element.prototype = {
 		this.setAttributeNode(attr)
 	},
 	getAttributeNodeNS : function(namespaceURI, localName){
+		return this.attributes.getNamedItemNS(namespaceURI, localName);
 	},
 	
 	getElementsByTagName : function(tagName){
+		return new LiveNodeList(this,function(base){
 			var ls = [];
 			_visitNode(base,function(node){
 				if(node !== base && node.nodeType == ELEMENT_NODE && (tagName === '*' || node.tagName == tagName)){
 					ls.push(node);
 				}
 			});
+			return ls;
 		});
 	},
 	getElementsByTagNameNS : function(namespaceURI, localName){
+		return new LiveNodeList(this,function(base){
 			var ls = [];
 			_visitNode(base,function(node){
 				if(node !== base && node.nodeType === ELEMENT_NODE && (namespaceURI === '*' || node.namespaceURI === namespaceURI) && (localName === '*' || node.localName == localName)){
 					ls.push(node);
 				}
 			});
+			return ls;
 			
 		});
 	}
@@ -4407,6 +4835,7 @@ function CharacterData() {
 CharacterData.prototype = {
 	data : '',
 	substringData : function(offset, count) {
+		return this.data.substring(offset, offset+count);
 	},
 	appendData: function(text) {
 		text = this.data+text;
@@ -4447,6 +4876,7 @@ Text.prototype = {
 		if(this.parentNode){
 			this.parentNode.insertBefore(newNode, this.nextSibling);
 		}
+		return newNode;
 	}
 }
 _extends(Text,CharacterData);
@@ -4500,6 +4930,7 @@ ProcessingInstruction.prototype.nodeType = PROCESSING_INSTRUCTION_NODE;
 _extends(ProcessingInstruction,Node);
 function XMLSerializer(){}
 XMLSerializer.prototype.serializeToString = function(node,isHtml,nodeFilter){
+	return nodeSerializeToString.call(node,isHtml,nodeFilter);
 }
 Node.prototype.toString = nodeSerializeToString;
 function nodeSerializeToString(isHtml,nodeFilter){
@@ -4521,14 +4952,17 @@ function nodeSerializeToString(isHtml,nodeFilter){
 	}
 	serializeToString(this,buf,isHtml,nodeFilter,visibleNamespaces);
 	//console.log('###',this.nodeType,uri,prefix,buf.join(''))
+	return buf.join('');
 }
 function needNamespaceDefine(node,isHTML, visibleNamespaces) {
 	var prefix = node.prefix||'';
 	var uri = node.namespaceURI;
 	if (!prefix && !uri){
+		return false;
 	}
 	if (prefix === "xml" && uri === "http://www.w3.org/XML/1998/namespace" 
 		|| uri == 'http://www.w3.org/2000/xmlns/'){
+		return false;
 	}
 	
 	var i = visibleNamespaces.length 
@@ -4538,13 +4972,16 @@ function needNamespaceDefine(node,isHTML, visibleNamespaces) {
 		// get namespace prefix
 		//console.log(node.nodeType,node.tagName,ns.prefix,prefix)
 		if (ns.prefix == prefix){
+			return ns.namespace != uri;
 		}
 	}
 	//console.log(isHTML,uri,prefix=='')
 	//if(isHTML && prefix ==null && uri == 'http://www.w3.org/1999/xhtml'){
+	//	return false;
 	//}
 	//node.flag = '11111'
 	//console.error(3,true,node.flag,node.prefix,node.namespaceURI)
+	return true;
 }
 function serializeToString(node,buf,isHTML,nodeFilter,visibleNamespaces){
 	if(nodeFilter){
@@ -4552,8 +4989,10 @@ function serializeToString(node,buf,isHTML,nodeFilter,visibleNamespaces){
 		if(node){
 			if(typeof node == 'string'){
 				buf.push(node);
+				return;
 			}
 		}else{
+			return;
 		}
 		//buf.sort.apply(attrs, attributeSorter);
 	}
@@ -4625,6 +5064,7 @@ function serializeToString(node,buf,isHTML,nodeFilter,visibleNamespaces){
 		}
 		// remove added visible namespaces
 		//visibleNamespaces.length = startVisibleNamespaces;
+		return;
 	case DOCUMENT_NODE:
 	case DOCUMENT_FRAGMENT_NODE:
 		var child = node.firstChild;
@@ -4632,10 +5072,15 @@ function serializeToString(node,buf,isHTML,nodeFilter,visibleNamespaces){
 			serializeToString(child,buf,isHTML,nodeFilter,visibleNamespaces);
 			child = child.nextSibling;
 		}
+		return;
 	case ATTRIBUTE_NODE:
+		return buf.push(' ',node.name,'="',node.value.replace(/[<&"]/g,_xmlEncoder),'"');
 	case TEXT_NODE:
+		return buf.push(node.data.replace(/[<&]/g,_xmlEncoder));
 	case CDATA_SECTION_NODE:
+		return buf.push( '<![CDATA[',node.data,']]>');
 	case COMMENT_NODE:
+		return buf.push( "<!--",node.data,"-->");
 	case DOCUMENT_TYPE_NODE:
 		var pubid = node.publicId;
 		var sysid = node.systemId;
@@ -4655,8 +5100,11 @@ function serializeToString(node,buf,isHTML,nodeFilter,visibleNamespaces){
 			}
 			buf.push(">");
 		}
+		return;
 	case PROCESSING_INSTRUCTION_NODE:
+		return buf.push( "<?",node.target," ",node.data,"?>");
 	case ENTITY_REFERENCE_NODE:
+		return buf.push( '&',node.nodeName,';');
 	//case ENTITY_NODE:
 	//case NOTATION_NODE:
 	default:
@@ -4706,6 +5154,7 @@ function importNode(doc,node,deep){
 			child = child.nextSibling;
 		}
 	}
+	return node2;
 }
 //
 //var _relationMap = {firstChild:1,lastChild:1,previousSibling:1,nextSibling:1,
@@ -4744,6 +5193,7 @@ function cloneNode(doc,node,deep){
 			child = child.nextSibling;
 		}
 	}
+	return node2;
 }
 
 function __set__(object,key,value){
@@ -4755,10 +5205,12 @@ try{
 		Object.defineProperty(LiveNodeList.prototype,'length',{
 			get:function(){
 				_updateLiveList(this);
+				return this.$$length;
 			}
 		});
 		Object.defineProperty(Node.prototype,'textContent',{
 			get:function(){
+				return getTextContent(this);
 			},
 			set:function(data){
 				switch(this.nodeType){
@@ -4792,7 +5244,9 @@ try{
 					}
 					node = node.nextSibling;
 				}
+				return buf.join('');
 			default:
+				return node.nodeValue;
 			}
 		}
 		__set__ = function(object,key,value){
@@ -4852,15 +5306,20 @@ function parse(source,defaultNSMapCopy,entityMap,domBuilder,errorHandler){
 			var surrogate1 = 0xd800 + (code >> 10)
 				, surrogate2 = 0xdc00 + (code & 0x3ff);
 
+			return String.fromCharCode(surrogate1, surrogate2);
 		} else {
+			return String.fromCharCode(code);
 		}
 	}
 	function entityReplacer(a){
 		var k = a.slice(1,-1);
 		if(k in entityMap){
+			return entityMap[k]; 
 		}else if(k.charAt(0) === '#'){
+			return fixedFromCharCode(parseInt(k.substr(1).replace('x','0x')))
 		}else{
 			errorHandler.error('entity not found:'+a);
+			return a;
 		}
 	}
 	function appendText(end){//has some bugs
@@ -4898,6 +5357,7 @@ function parse(source,defaultNSMapCopy,entityMap,domBuilder,errorHandler){
 	    			doc.appendChild(text);
 	    			domBuilder.currentElement = text;
 				}
+				return;
 			}
 			if(tagStart>start){
 				appendText(tagStart);
@@ -5008,10 +5468,12 @@ function parse(source,defaultNSMapCopy,entityMap,domBuilder,errorHandler){
 function copyLocator(f,t){
 	t.lineNumber = f.lineNumber;
 	t.columnNumber = f.columnNumber;
+	return t;
 }
 
 /**
  * @see #appendElement(source,elStartEnd,el,selfClosed,entityReplacer,domBuilder,parseStack);
+ * @return end of the elementStartPart(end of elementEndPart for selfClosed el)
  */
 function parseElementStartPart(source,start,el,currentNSMap,entityReplacer,errorHandler){
 	var attrName;
@@ -5087,6 +5549,7 @@ function parseElementStartPart(source,start,el,currentNSMap,entityReplacer,error
 			if(s == S_TAG){
 				el.setTagName(source.slice(start,p));
 			}
+			return p;
 		case '>':
 			switch(s){
 			case S_TAG:
@@ -5120,6 +5583,7 @@ function parseElementStartPart(source,start,el,currentNSMap,entityReplacer,error
 				throw new Error('attribute value missed!!');
 			}
 //			console.log(tagName,tagNamePattern,tagNamePattern.test(tagName))
+			return p;
 		/*xml space '\x20' | #x9 | #xD | #xA; */
 		case '\u0080':
 			c = ' ';
@@ -5184,6 +5648,7 @@ function parseElementStartPart(source,start,el,currentNSMap,entityReplacer,error
 	}
 }
 /**
+ * @return true if has new namespace define
  */
 function appendElement(el,domBuilder,currentNSMap){
 	var tagName = el.tagName;
@@ -5257,6 +5722,7 @@ function appendElement(el,domBuilder,currentNSMap){
 		el.currentNSMap = currentNSMap;
 		el.localNSMap = localNSMap;
 		//parseStack.push(el);
+		return true;
 	}
 }
 function parseHtmlSpecialContent(source,elStartEnd,tagName,entityReplacer,domBuilder){
@@ -5269,14 +5735,17 @@ function parseHtmlSpecialContent(source,elStartEnd,tagName,entityReplacer,domBui
 					//lexHandler.startCDATA();
 					domBuilder.characters(text,0,text.length);
 					//lexHandler.endCDATA();
+					return elEndStart;
 				//}
 			}//}else{//text area
 				text = text.replace(/&#?\w+;/g,entityReplacer);
 				domBuilder.characters(text,0,text.length);
+				return elEndStart;
 			//}
 			
 		}
 	}
+	return elStartEnd+1;
 }
 function fixSelfClosed(source,elStartEnd,tagName,closeMap){
 	//if(tagName in closeMap){
@@ -5289,6 +5758,7 @@ function fixSelfClosed(source,elStartEnd,tagName,closeMap){
 		}
 		closeMap[tagName] =pos
 	}
+	return pos<elStartEnd;
 	//} 
 }
 function _copy(source,target){
@@ -5303,11 +5773,14 @@ function parseDCC(source,start,domBuilder,errorHandler){//sure start with '<!'
 			//append comment source.substring(4,end)//<!--
 			if(end>start){
 				domBuilder.comment(source,start+4,end-start-4);
+				return end+3;
 			}else{
 				errorHandler.error("Unclosed comment");
+				return -1;
 			}
 		}else{
 			//error
+			return -1;
 		}
 	default:
 		if(source.substr(start+3,6) == 'CDATA['){
@@ -5315,6 +5788,7 @@ function parseDCC(source,start,domBuilder,errorHandler){//sure start with '<!'
 			domBuilder.startCDATA();
 			domBuilder.characters(source,start+9,end-start-9);
 			domBuilder.endCDATA() 
+			return end+3;
 		}
 		//<!DOCTYPE
 		//startDTD(java.lang.String name, java.lang.String publicId, java.lang.String systemId) 
@@ -5329,8 +5803,10 @@ function parseDCC(source,start,domBuilder,errorHandler){//sure start with '<!'
 					sysid && sysid.replace(/^(['"])(.*?)\1$/,'$2'));
 			domBuilder.endDTD();
 			
+			return lastMatch.index+lastMatch[0].length
 		}
 	}
+	return -1;
 }
 
 
@@ -5342,9 +5818,12 @@ function parseInstruction(source,start,domBuilder){
 		if(match){
 			var len = match[0].length;
 			domBuilder.processingInstruction(match[1], match[2]) ;
+			return end+2;
 		}else{//error
+			return -1;
 		}
 	}
+	return -1;
 }
 
 /**
@@ -5367,6 +5846,11 @@ ElementAttributes.prototype = {
 		this[this.length++] = {qName:qName,value:value,offset:offset}
 	},
 	length:0,
+	getLocalName:function(i){return this[i].localName},
+	getLocator:function(i){return this[i].locator},
+	getQName:function(i){return this[i].qName},
+	getURI:function(i){return this[i].uri},
+	getValue:function(i){return this[i].value}
 //	,getIndex:function(uri, localName)){
 //		if(localName){
 //			
@@ -5374,6 +5858,7 @@ ElementAttributes.prototype = {
 //			var qName = uri
 //		}
 //	},
+//	getValue:function(){return this.getValue(this.getIndex.apply(this,arguments))},
 //	getType:function(uri,localName){}
 //	getType:function(i){},
 }
@@ -5383,6 +5868,7 @@ ElementAttributes.prototype = {
 
 function _set_proto_(thiz,parent){
 	thiz.__proto__ = parent;
+	return thiz;
 }
 if(!(_set_proto_({},_set_proto_.prototype) instanceof _set_proto_)){
 	_set_proto_ = function(thiz,parent){
@@ -5392,6 +5878,7 @@ if(!(_set_proto_({},_set_proto_.prototype) instanceof _set_proto_)){
 		for(parent in thiz){
 			p[parent] = thiz[parent];
 		}
+		return p;
 	}
 }
 
@@ -5403,6 +5890,7 @@ function split(source,start){
 	reg.exec(source);//skip <
 	while(match = reg.exec(source)){
 		buf.push(match);
+		if(match[1])return buf;
 	}
 }
 
@@ -5412,7 +5900,9 @@ exports.XMLReader = XMLReader;
 },{}],"/js/index.js":[function(require,module,exports){
 "use strict";
 
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -5421,6 +5911,7 @@ var DocUtils = require("docxtemplater").DocUtils;
 var DOMParser = require("xmldom").DOMParser;
 
 function isNaN(number) {
+	return !(number === number);
 }
 
 var ImgManager = require("./imgManager");
@@ -5429,6 +5920,7 @@ var moduleName = "open-xml-templating/docxtemplater-image-module";
 function getInnerDocx(_ref) {
 	var part = _ref.part;
 
+	return part;
 }
 
 function getInnerPptx(_ref2) {
@@ -5438,6 +5930,7 @@ function getInnerPptx(_ref2) {
 	    postparsed = _ref2.postparsed;
 
 	var xmlString = postparsed.slice(left + 1, right).reduce(function (concat, item) {
+		return concat + item.value;
 	}, "");
 	var xmlDoc = new DOMParser().parseFromString("<xml>" + xmlString + "</xml>");
 	part.offset = { x: 0, y: 0 };
@@ -5452,6 +5945,7 @@ function getInnerPptx(_ref2) {
 		part.offset.x = parseInt(offset[offset.length - 1].getAttribute("x"), 10);
 		part.offset.y = parseInt(offset[offset.length - 1].getAttribute("y"), 10);
 	}
+	return part;
 }
 
 var ImageModule = function () {
@@ -5480,11 +5974,13 @@ var ImageModule = function () {
 		key: "optionsTransformer",
 		value: function optionsTransformer(options, docxtemplater) {
 			var relsFiles = docxtemplater.zip.file(/\.xml\.rels/).concat(docxtemplater.zip.file(/\[Content_Types\].xml/)).map(function (file) {
+				return file.name;
 			});
 			this.fileTypeConfig = docxtemplater.fileTypeConfig;
 			this.fileType = docxtemplater.fileType;
 			this.zip = docxtemplater.zip;
 			options.xmlFileNames = options.xmlFileNames.concat(relsFiles);
+			return options;
 		}
 	}, {
 		key: "set",
@@ -5502,11 +5998,15 @@ var ImageModule = function () {
 			var module = moduleName;
 			var type = "placeholder";
 			if (this.options.setParser) {
+				return this.options.setParser(placeHolderContent);
 			}
 			if (placeHolderContent.substring(0, 2) === "%%") {
+				return { type: type, value: placeHolderContent.substr(2), module: module, centered: true };
 			}
 			if (placeHolderContent.substring(0, 1) === "%") {
+				return { type: type, value: placeHolderContent.substr(1), module: module, centered: false };
 			}
+			return null;
 		}
 	}, {
 		key: "postparse",
@@ -5520,22 +6020,27 @@ var ImageModule = function () {
 				expandTo = this.options.centered ? "w:p" : "w:t";
 				getInner = getInnerDocx;
 			}
+			return DocUtils.traits.expandToOne(parsed, { moduleName: moduleName, getInner: getInner, expandTo: expandTo });
 		}
 	}, {
 		key: "render",
 		value: function render(part, options) {
 			if (!part.type === "placeholder" || part.module !== moduleName) {
+				return null;
 			}
 			var tagValue = options.scopeManager.getValue(part.value, {
 				part: part
 			});
 			if (!tagValue) {
+				return { value: this.fileTypeConfig.tagTextXml };
 			} else if ((typeof tagValue === "undefined" ? "undefined" : _typeof(tagValue)) === "object") {
+				return this.getRenderedPart(part, tagValue.rId, tagValue.sizePixel);
 			}
 			var imgManager = new ImgManager(this.zip, options.filePath, this.xmlDocuments, this.fileType);
 			var imgBuffer = this.options.getImage(tagValue, part.value);
 			var rId = imgManager.addImageRels(this.getNextImageName(), imgBuffer);
 			var sizePixel = this.options.getSize(imgBuffer, tagValue, part.value);
+			return this.getRenderedPart(part, rId, sizePixel);
 		}
 	}, {
 		key: "resolve",
@@ -5544,19 +6049,24 @@ var ImageModule = function () {
 
 			var imgManager = new ImgManager(this.zip, options.filePath, this.xmlDocuments, this.fileType);
 			if (!part.type === "placeholder" || part.module !== moduleName) {
+				return null;
 			}
 			var value = options.scopeManager.getValue(part.value, {
 				part: part
 			});
 			if (!value) {
+				return { value: this.fileTypeConfig.tagTextXml };
 			}
+			return new Promise(function (resolve) {
 				var imgBuffer = _this.options.getImage(value, part.value);
 				resolve(imgBuffer);
 			}).then(function (imgBuffer) {
 				var rId = imgManager.addImageRels(_this.getNextImageName(), imgBuffer);
+				return new Promise(function (resolve) {
 					var sizePixel = _this.options.getSize(imgBuffer, value, part.value);
 					resolve(sizePixel);
 				}).then(function (sizePixel) {
+					return {
 						rId: rId,
 						sizePixel: sizePixel
 					};
@@ -5578,6 +6088,7 @@ var ImageModule = function () {
 			} else {
 				newText = this.getRenderedPartDocx(rId, size, centered, border);
 			}
+			return { value: newText };
 		}
 	}, {
 		key: "getRenderedPartPptx",
@@ -5591,25 +6102,27 @@ var ImageModule = function () {
 				offset.x = Math.round(offset.x + cellCX / 2 - imgW / 2);
 				offset.y = Math.round(offset.y + cellCY / 2 - imgH / 2);
 			}
+			return templates.getPptxImageXml(rId, [imgW, imgH], offset);
 		}
 	}, {
 		key: "getRenderedPartDocx",
 		value: function getRenderedPartDocx(rId, size, centered, border) {
+			if (centered) return templates.getImageXmlCentered(rId, size);else if (border) return templates.getImageXmlBordered(rId, size, border);else return templates.getImageXml(rId, size);
 		}
 	}, {
 		key: "getNextImageName",
 		value: function getNextImageName() {
 			var name = "image_generated_" + this.imageNumber + ".png";
 			this.imageNumber++;
+			return name;
 		}
 	}]);
 
+	return ImageModule;
 }();
 
 module.exports = ImageModule;
 },{"./imgManager":2,"./templates":3,"docxtemplater":5,"xmldom":25}]},{},[])("/js/index.js")
 });
 
-if (typeof window !== "undefined") {
-    window.ImageModule = ImageModule;
-}
+if (typeof window !== "undefined") { window.ImageModule = ImageModule; }
